@@ -559,6 +559,9 @@ Sessions 1 to 22 (the vertical slice through the Cems' swift strain) are in `doc
   wood, a grep finds wood only in the old-save cleanup and its test, the full `npm test` (23 of 23), a scrap building
   paid by the copies' scavenging from an empty store. Screenshots `hands-carry.png`, `hands-need.png`,
   `tutorial-printer.png`, `together-hall.png`, `building-*.png`, `cemprint-*.png`.
+- Merged as PR #76 (CI 23 of 23) after PR #75 (the wide screen). **The `mind` function v22 is deployed**: index.ts,
+  kit.json and warren.ts checked byte for byte against the repo after the deploy; the live v21 matched main from
+  before the change, so nothing else was overwritten.
 
 ### Session 26 (2026-11-01): the game fills a phone held sideways (Steve, on an iPhone in Chrome: "the screen seems to be too small")
 - **What it was:** the game drew a fixed 480x270 (16:9) and was fitted into what the phone shows. In Chrome on the iPhone
