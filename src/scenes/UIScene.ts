@@ -37,11 +37,16 @@ export class UIScene extends Phaser.Scene {
   private talkBtn!: Phaser.GameObjects.Container;
   private talkBtnCore!: Phaser.GameObjects.Arc;
   private talkTarget: number | null = null;
+  /** title cards and notices showing now, kept on the middle of the screen if the game's width changes under them */
+  private centred = new Set<Phaser.GameObjects.BitmapText | Phaser.GameObjects.Graphics>();
+  private centredW = 0;
 
   constructor() { super('ui'); }
 
   create() {
     const { height } = this.scale;
+    this.centred.clear();
+    this.centredW = this.scale.width;
 
     // Ember counter: icon + number, fades when idle
     const icon = this.add.image(0, 0, 'shard').setOrigin(0, 0);
@@ -140,6 +145,9 @@ export class UIScene extends Phaser.Scene {
       speaker.setX(w - 16);
       fps?.setX(w - 40);
       this.talkBox.relayout();
+      const dx = (w - this.centredW) / 2; // widths are even: a whole pixel
+      this.centredW = w;
+      if (dx) for (const o of this.centred) o.x += dx;
     });
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
@@ -326,11 +334,16 @@ export class UIScene extends Phaser.Scene {
     const lineW = label.width / 2 + 8;
     const lines = this.add.graphics().setAlpha(0).setDepth(20);
     lines.fillStyle(PALETTE[9], 1).fillRect(width / 2 - lineW - 14, y + 6, 10, 1).fillRect(width / 2 + lineW + 4, y + 6, 10, 1);
+    this.keepCentred(label, lines);
     this.tweens.add({ targets: [label, lines], alpha: 1, y: '-=6', duration: 350, ease: 'Sine.easeOut' });
     this.tweens.add({
       targets: [label, lines], alpha: 0, delay: 2600, duration: 700, ease: 'Sine.easeIn',
       onComplete: () => { label.destroy(); lines.destroy(); },
     });
+  }
+
+  private keepCentred(...objs: (Phaser.GameObjects.BitmapText | Phaser.GameObjects.Graphics)[]) {
+    for (const o of objs) { this.centred.add(o); o.once(Phaser.GameObjects.Events.DESTROY, () => this.centred.delete(o)); }
   }
 
   private titleCard(name: string, subtitle: string) {
@@ -344,6 +357,7 @@ export class UIScene extends Phaser.Scene {
     lines.fillRect(width / 2 + lineW + 6, height * 0.3, 24, 1);
     const group = [title, sub, lines];
     group.forEach((o) => o.setAlpha(0));
+    this.keepCentred(...group);
     this.tweens.add({ targets: group, alpha: 1, duration: 700, ease: 'Sine.easeOut' });
     this.tweens.add({ targets: title, y: title.y - 3, duration: 3200, ease: 'Sine.easeOut' });
     this.tweens.add({

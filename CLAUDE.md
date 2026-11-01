@@ -486,7 +486,7 @@ world beside its nearest wild field), `?shot=1&view=biolab|strain` (a Biolab by 
 at its door; strain: the Biolab changing them), `?shot=1&view=replicate|replicating` (the Replicator
 with a chip in hand: its WAKE or HOLD open; a Vessel held at 60% beside it, `&cems=1` with the Cems awake),
 `?shot=1&view=chip` (a Nous Chip lying on the awake bed), `&zoom=0.5` (a wider look in a screenshot; the
-lighting covers only the middle).
+lighting, sky and vignette are laid out for zoom 1, so they do not line up).
 
 ## Progress
 
@@ -515,9 +515,19 @@ Sessions 1 to 22 (the vertical slice through the Cems' swift strain) are in `doc
   On the planet the touch buttons, the speaker and the talk box follow the right edge (the talk box stays 480 wide,
   centered, so its lines stay short); the darkness, sky, stars, fog, sunbeams and rain layers cover the widest game;
   the vignette is made for each size. The design menu and the husk vault keep their 480 layout, centered.
+- **An independent review** (four reviewers, two skeptics on each finding; nine findings, four refuted) confirmed
+  and this fixed: a vignette was made for every width a dragged window passed through and none was freed (121
+  textures, about 78 MB; now the old one is removed); a title card or notice showing while the width changed stayed
+  centred on the old width (now moved with it); the darkness layer's 8 px margin was less than the keeper's camera
+  shake at 720 wide (about 10 px), uncovering an unlit strip at the edge (now 12). Dust, spores and rain were about a
+  third thinner at 720 (the same rate over a wider zone): their rate and cap now grow with the width. Left as they
+  are: `?zoom` review shots no longer line up (dev only, noted under URL params); the star map's planet list opens
+  unfolded on a phone held sideways (its canvas is now wide enough for it).
 - Verified: build, typecheck, every scene at 720x270 (planet, touch controls, talk box, star map, designs, vault,
-  warren, travel) and a live resize both ways with the star map open in between, no page errors; the full `npm test`.
-  Screenshot `wide-phone.png`.
+  warren, travel) and a live resize both ways with the star map open in between, no page errors; a check of the
+  review fixes (one vignette after a window drag, cards re-centred, dust density equal at 480 and 720, the margin); the
+  full `npm test` (22 of 23 in a run beside the review's browsers, `playtest-talk` the known timing flake, passing
+  alone; then again after the fixes). Screenshot `wide-phone.png`.
 
 ### Session 25 (2026-10-29): the next steps; the minds back on (Steve: "Go ahead and view this game. Then look at the plan doc and the bible. Whats next? Ask me any questions and we will make a plan for the next steps", and his answers: invite link, turn the minds back on, joining and the memory next, merge #72 and update the bible)
 - Looked over the game (fresh screenshots of the homeworld, the bed, the Replicator printing, Gliese 12 b) and Steve's

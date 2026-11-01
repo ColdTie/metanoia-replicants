@@ -492,7 +492,11 @@ export class PlanetScene extends Phaser.Scene {
     cam.centerOn(start.x, start.y);
 
     const vignette = this.add.image(0, 0, vignetteFor(this)).setOrigin(0).setScrollFactor(0).setDepth(DEPTH.vignette);
-    onScreenSize(this, () => vignette.setTexture(vignetteFor(this)));
+    // one vignette at a time: the one for the old size is freed (a dragged window passes through many widths)
+    onScreenSize(this, () => {
+      const old = vignette.texture.key, key = vignetteFor(this);
+      if (key !== old) { vignette.setTexture(key); this.textures.remove(old); }
+    });
 
     this.game.events.emit('embers', this.embers);
     this.saver.setupSaving();

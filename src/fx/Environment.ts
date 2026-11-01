@@ -6,7 +6,7 @@ import { DAYCYCLE, PALETTE, hex, type PlanetDef } from '../core/data';
 import type { Atmosphere } from './Atmosphere';
 import type { Light, Lighting } from './Lighting';
 import { makeRays, makeWeatherBits, rgb } from './textures';
-import { MAX_W, onScreenSize } from '../core/viewport';
+import { MAX_W, MIN_W, onScreenSize } from '../core/viewport';
 
 interface Firefly { x: number; y: number; vx: number; vy: number; phase: number; light?: Light; dot: Phaser.GameObjects.Image }
 
@@ -93,7 +93,6 @@ export class Environment {
 
     if (planet.weather) {
       const zone = new Phaser.Geom.Rectangle(-60, -30, w + 120, 10);
-      onScreenSize(scene, (sw) => { zone.width = sw + 120; });
       this.rain = scene.add.particles(0, 0, 'drop', {
         emitZone: { type: 'random', source: zone, quantity: 1 } as Phaser.Types.GameObjects.Particles.EmitZoneData,
         frequency: 6, quantity: 2,
@@ -102,6 +101,9 @@ export class Environment {
         alpha: { min: 0.3, max: 0.7 },
         emitting: false,
       }).setDepth(6130);
+      // as heavy on a wide screen: the zone follows the game's width and the rate grows with it
+      const rain = this.rain;
+      onScreenSize(scene, (sw) => { zone.width = sw + 120; rain.frequency = 6 / ((sw + 120) / (MIN_W + 120)); });
       this.ripples = scene.add.particles(0, 0, 'ring', {
         lifespan: 450,
         scale: { start: 0.2, end: 1 },

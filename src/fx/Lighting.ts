@@ -14,7 +14,9 @@ export interface Light {
   active: boolean;
 }
 
-const M = 8;
+// the margin past each screen edge: more than the largest camera shake moves the screen at the widest game (Phaser
+// shakes by intensity x width; the keeper's slam is 0.014)
+const M = Math.ceil(0.015 * MAX_W) + 1;
 
 export class Lighting {
   private rt: Phaser.GameObjects.RenderTexture;

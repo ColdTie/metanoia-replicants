@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 import { PALETTE, hex, type PlanetDef } from '../core/data';
 import { makeFog, makeSky, makeStars } from './textures';
-import { MAX_W, onScreenSize } from '../core/viewport';
+import { MAX_W, MIN_W, onScreenSize } from '../core/viewport';
 
 export class Atmosphere {
   readonly sky: Phaser.GameObjects.Image;
@@ -32,7 +32,6 @@ export class Atmosphere {
 
     // Dust motes: world space, emitted around the camera so they parallax with the ground
     const zone = new Phaser.Geom.Rectangle(-40, -40, w + 80, h + 80);
-    onScreenSize(scene, (sw) => { zone.width = sw + 80; });
     this.dust = scene.add.particles(0, 0, 'px1', {
       emitZone: { type: 'random', source: zone, quantity: 1 } as Phaser.Types.GameObjects.Particles.EmitZoneData,
       frequency: 90,
@@ -57,6 +56,15 @@ export class Atmosphere {
       blendMode: Phaser.BlendModes.ADD,
       maxAliveParticles: 30,
     }).setDepth(6120);
+
+    // as thick on a wide screen as on a 16:9 one: the zone follows the game's width and the rate and cap grow with it
+    const sporeMs = 1000 / Math.max(0.1, planet.sporeRate);
+    onScreenSize(scene, (sw) => {
+      zone.width = sw + 80;
+      const k = (sw + 80) / (MIN_W + 80);
+      this.dust.frequency = 90 / k; this.dust.maxAliveParticles = Math.round(70 * k);
+      this.spores.frequency = sporeMs / k; this.spores.maxAliveParticles = Math.round(30 * k);
+    });
 
     // Pre-warm so the first frame already has atmosphere
     this.dust.fastForward(5000);
