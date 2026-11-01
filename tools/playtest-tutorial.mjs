@@ -127,7 +127,8 @@ try {
   await page.waitForTimeout(1500);
   const readout = await ev(() => { const r = window.__scene.tutorial.readout; return r ? { alpha: r.box.alpha, n: r.box.list.length } : null; });
   log('readout', JSON.stringify(readout));
-  if (!readout || readout.n < 12) fail('the printer does not show what it waits for');
+  // an icon and a count for every material the Printworks waits for
+  if (!readout || readout.n < 2 * Object.keys(world.cost).length) fail('the printer does not show what it waits for');
   await shot('tutorial-printer');
 
   // 5. the home supplies: a salt bloom broken by hand, the rest given; the wisp now leads to the ship
@@ -141,7 +142,7 @@ try {
     return { before, after: s.supplies.salt ?? 0 };
   });
   if (salt.after - salt.before < 3) fail('salt did not reach the store');
-  await ev(() => { const s = window.__scene; s.supplies.salt = Math.max(12, s.supplies.salt ?? 0); s.supplies.iron = 8; s.supplies.wood = 6; s.markSupplies(); s.addEmbers(20); });
+  await ev(() => { const s = window.__scene; s.supplies.salt = Math.max(12, s.supplies.salt ?? 0); s.supplies.iron = 8; s.markSupplies(); s.addEmbers(20); });
   await page.waitForTimeout(1400);
   const toShip = await ev(() => { const s = window.__scene, w = s.tutorial.wisp, g = s.tutorial.guide; return { guide: g, paid: s.buildings.list.find((x) => x.id === 'metanoia-printworks').paid, toward: w ? Math.round(Math.hypot(w.x - s.boardSpot.x, w.y - s.boardSpot.y) - Math.hypot(s.player.x - s.boardSpot.x, s.player.y - s.boardSpot.y)) : null }; });
   log('home supplies', JSON.stringify(toShip));
@@ -196,7 +197,7 @@ try {
   await shot('tutorial-awake');
 
   // 9. three designs of yours open the stars
-  await ev(() => { const s = window.__scene; for (const k of ['salt', 'iron', 'wood']) s.supplies[k] = 38; s.supplies.quartz = 4; s.supplies.copper = 4; s.markSupplies(); s.addEmbers(20); });
+  await ev(() => { const s = window.__scene; for (const k of ['salt', 'iron']) s.supplies[k] = 38; s.supplies.quartz = 4; s.supplies.copper = 4; s.markSupplies(); s.addEmbers(20); });
   for (const id of ['lantern', 'house', 'storehouse']) {
     const why = await ev((id) => window.__scene.buildings.whyNot(id), id);
     if (why === 'THE CEMS ARE BUSY') { await ev(() => { for (const p of window.__scene.buildings.printing) p.printStart = Date.now() - p.printMs - 10; }); await page.waitForTimeout(1500); }

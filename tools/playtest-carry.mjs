@@ -1,6 +1,7 @@
-// Scripted headless playtest of the original's hands (session 15, M1): fell a tree and carry the wood, a copy's
-// building that waits for wood shows it over the copy's head, walking into the site hands the wood over and pays
-// it, swings help raise it, a load handed to a copy cheers it, stone broken off rock, a load stowed when leaving.
+// Scripted headless playtest of the original's hands (session 15, M1): a swing at a tree leaves it standing and gives
+// nothing, stone broken off rock rides above the head (the same rock gives none again right away), a copy's building
+// that waits for stone shows it over the copy's head, walking into the site with the stone hands it over and pays it,
+// swings help raise it, a load handed to a copy cheers it, a load stowed when leaving.
 // Usage: npm run build && node tools/playtest-carry.mjs
 import { spawn } from 'node:child_process';
 import { chromium } from 'playwright';
@@ -25,64 +26,100 @@ try {
   // the copies stand still at home, away from where the original works
   await ev(() => { const s = window.__scene; s.npcs.forEach((n) => { n.state = 'idle'; n.until = s.time.now + 600_000; n.nextBuild = s.time.now + 600_000; }); s.player.locked = false; });
 
-  // 1. fell a tree: six swings, it comes down, its wood rides above the head
-  const fell = async () => ev(async () => {
-    const s = window.__scene, base = s.baseCenter;
-    const t = s.trees.filter((x) => x.alive && Math.hypot(x.x - base.x, x.y - base.y) > 160 && s.npcs.every((n) => Math.hypot(n.x - x.x, n.y - x.y) > 80))
+  // 1. trees are scenery: swings at one leave it standing, and nothing rides above the head
+  const tree = await ev(async () => {
+    const s = window.__scene, base = s.baseCenter, m = s.map, T = 16;
+    const rockAt = (x, y) => { const tx = Math.floor(x / T), ty = Math.floor(y / T); return tx >= 0 && ty >= 0 && tx < m.w && ty < m.h && m.cells[ty * m.w + tx] === 2; };
+    // a tree with no rock, crystal or building under the swing (those answer a swing of their own)
+    const clear = (t) => !rockAt(t.x - 4, t.y - 4) && !rockAt(t.x - 4, t.y - 12)
+      && s.nodes.every((n) => !n.alive || Math.hypot(n.x - (t.x - 4), n.y - t.y) > 30)
+      && s.buildings.list.every((bl) => Math.hypot(bl.x - t.x, bl.y - t.y) > 80);
+    const t = s.trees.filter((x) => x.alive && clear(x) && Math.hypot(x.x - base.x, x.y - base.y) > 160 && s.npcs.every((n) => Math.hypot(n.x - x.x, n.y - x.y) > 80))
       .sort((a, c) => Math.hypot(a.x - base.x, a.y - base.y) - Math.hypot(c.x - base.x, c.y - base.y))[0];
     if (!t) return null;
+    s.hands.load = null;
     s.player.setPosition(t.x - 14, t.y + 2);
     const aim = { x: 1, y: 0, lengthSq: () => 1 };
-    let swings = 0;
-    const n0 = s.hands.load?.n ?? 0;
-    while (t.alive && swings < 12) { s.resolveAttack(t.x - 4, t.y - 4, 14, aim); swings++; await new Promise((r) => setTimeout(r, 150)); }
-    // the wood flies over once the tree is down (a scene timer: slow at headless frame rates)
-    for (let i = 0; i < 150 && (s.hands.load?.n ?? 0) < n0 + 3; i++) await new Promise((r) => setTimeout(r, 100));
-    return { swings, alive: t.alive, felled: (s.pending.felled ?? []).includes(t.index), load: s.hands.load && { ...s.hands.load } };
+    for (let i = 0; i < 8; i++) { s.resolveAttack(t.x - 4, t.y - 4, 14, aim); await new Promise((r) => setTimeout(r, 150)); }
+    // whatever a felled tree once gave came after a scene timer: wait as long
+    await new Promise((r) => setTimeout(r, 1500));
+    return { index: t.index, alive: t.alive, felled: (s.pending.felled ?? []).includes(t.index), load: s.hands.load && { ...s.hands.load } };
   });
-  const one = await fell();
-  log('tree', JSON.stringify(one));
-  if (!one) fail('no tree to fell');
+  log('tree', JSON.stringify(tree));
+  if (!tree) fail('no tree to swing at');
   else {
-    if (one.alive || !one.felled) fail('the tree did not come down for good');
-    if (one.swings !== 6) fail(`a tree took ${one.swings} swings, not 6`);
-    if (one.load?.material !== 'wood' || one.load?.n !== 3) fail('the wood is not carried');
+    if (!tree.alive || tree.felled) fail('swings brought a tree down');
+    if (tree.load) fail(`a swing at a tree gave something (${JSON.stringify(tree.load)})`);
   }
-  const two = await fell();
-  log('second tree', JSON.stringify(two));
-  if (two?.load?.n !== 6) fail('a second tree did not add to the load');
+
+  // 2. rock: four swings break off stone and it rides above the head; the same rock right away gives nothing more
+  const rock = await ev(async () => {
+    const s = window.__scene, m = s.map, T = 16, base = s.baseCenter, hatch = s.warren.hatch;
+    let best = null;
+    for (let ty = 1; ty < m.h - 1; ty++) for (let tx = 1; tx < m.w - 1; tx++) {
+      if (m.cells[ty * m.w + tx] !== 2 || m.cells[(ty + 1) * m.w + tx] !== 1) continue;
+      const x = tx * T + 8, y = (ty + 1) * T + 6, hy = ty * T + 12;
+      // nothing else answers the swing (a crystal, a tree) and nobody stands near enough to be handed the load
+      if (s.nodes.some((n) => n.alive && Math.hypot(n.x - x, n.y - 4 - hy) < 30)) continue;
+      if (s.trees.some((t) => t.alive && Math.hypot(t.x - x, t.y - hy) < 24)) continue;
+      if (Math.hypot(hatch.x - x, hatch.y - y) < 60 || s.npcs.some((n) => Math.hypot(n.x - x, n.y - y) < 60)) continue;
+      const d = Math.hypot(tx * T - base.x, ty * T - base.y);
+      if (!best || d < best.d) best = { tx, ty, d, x, y, hy };
+    }
+    if (!best) return null;
+    s.hands.load = null;
+    s.player.setPosition(best.x, best.y);
+    const aim = { x: 0, y: -1, lengthSq: () => 1 };
+    for (let i = 0; i < 4; i++) { s.resolveAttack(best.x, best.hy, 12, aim); await new Promise((r) => setTimeout(r, 150)); }
+    await new Promise((r) => setTimeout(r, 600));
+    const load = s.hands.load && { ...s.hands.load };
+    // four more swings on the same rock right away give nothing more
+    for (let i = 0; i < 4; i++) { s.resolveAttack(best.x, best.hy, 12, aim); await new Promise((r) => setTimeout(r, 150)); }
+    await new Promise((r) => setTimeout(r, 600));
+    return { at: [best.tx, best.ty], load, again: s.hands.load && { ...s.hands.load } };
+  });
+  log('rock', JSON.stringify(rock));
+  if (rock && (rock.load?.material !== 'stone' || rock.load?.n !== H.rockYield)) fail('rock gave no stone');
+  if (rock && rock.again?.n !== rock.load?.n) fail('the same rock gave stone twice in a row');
+  if (!rock) {
+    log('note: no rock on this world: the stone for the building is given by hand');
+    await ev((n) => { const s = window.__scene; s.hands.load = null; s.hands.take('stone', n, { x: s.player.x, y: s.player.y }); }, H.rockYield);
+  }
+  await page.waitForTimeout(400);
   await page.screenshot({ path: 'screenshots/hands-carry.png' });
 
-  // 2. a copy's building waits for wood: the wood shows over its head when you come near
+  // 3. a copy's building waits for stone: the stone shows over its head when you come near
   const plan = await ev(() => {
     const s = window.__scene, n = s.npcs[0];
-    s.supplies.wood = 0;
-    const bl = s.buildings.propose(n, { type: 'building', name: 'Workroom', purpose: 'A roof to work under.', width: 3, height: 2, material: 'wood', roof: 'flat', door: 'south', primary: 'sand', secondary: 'slate' });
+    s.supplies.stone = 0;
+    const bl = s.buildings.propose(n, { type: 'building', name: 'Workroom', purpose: 'A roof to work under.', width: 3, height: 2, material: 'stone', roof: 'flat', door: 'south', primary: 'sand', secondary: 'slate' });
     bl.approved = true;
     // short of only what the original carries: the load pays it
-    s.supplies.wood = Math.max(0, bl.cost.wood - 6);
+    s.supplies.stone = Math.max(0, bl.cost.stone - (s.hands.load?.n ?? 0));
     s.player.setPosition(n.x - 50, n.y + 10);
-    return { id: bl.id, cost: bl.cost, need: s.buildings.needOf(n.data.id), at: [bl.x, bl.y], w: bl.w, h: bl.h };
+    return { id: bl.id, material: bl.material, cost: bl.cost, carried: s.hands.load && { ...s.hands.load }, need: s.buildings.needOf(n.data.id), at: [bl.x, bl.y], w: bl.w, h: bl.h };
   });
   await page.waitForTimeout(500);
   const needShown = await ev(() => [...window.__scene.hands.needIcons.values()].some((i) => i.visible && i.alpha > 0.5));
   log('plan', JSON.stringify({ ...plan, needShown }));
-  if (plan.need !== 'wood' || !needShown) fail('the copy does not show what its building waits for');
+  if (plan.material !== 'stone' || !plan.cost.stone) fail('the building does not take stone');
+  if (plan.carried?.material !== 'stone') fail('the original does not carry the stone to the building');
+  if (plan.need !== 'stone' || !needShown) fail('the copy does not show what its building waits for');
   await page.screenshot({ path: 'screenshots/hands-need.png' });
 
-  // 3. walk into the site: the wood goes in and the building is paid
+  // 4. walk into the site: the stone goes in and the building is paid
   const delivered = await ev(async (p) => {
     const s = window.__scene, bl = s.buildings.list.find((x) => x.id === p.id);
-    const wood0 = s.supplies.wood;
+    const stone0 = s.supplies.stone;
     s.player.setPosition(bl.x - bl.w * 8 - 6, bl.y + 2);
     await new Promise((r) => setTimeout(r, 400));
-    return { load: s.hands.load, paid: bl.paid, wood0, wood: s.supplies.wood, log: s.mindLog.slice(-3).map((e) => e.text) };
+    return { load: s.hands.load, paid: bl.paid, stone0, stone: s.supplies.stone, log: s.mindLog.slice(-3).map((e) => e.text) };
   }, plan);
   log('delivered', JSON.stringify(delivered));
   if (delivered.load) fail('the load was not handed over at the site');
-  if (!delivered.paid) fail('the building was not paid with the wood');
+  if (!delivered.paid) fail('the building was not paid with the stone');
 
-  // 4. swing at it: each blow counts, the original is among its builders
+  // 5. swing at it: each blow counts, the original is among its builders
   const raised = await ev(async (p) => {
     const s = window.__scene, bl = s.buildings.list.find((x) => x.id === p.id);
     const before = bl.progress, aim = { x: 1, y: 0, lengthSq: () => 1 };
@@ -93,7 +130,7 @@ try {
   if (Math.abs(raised.after - raised.before - 4 * H.swingWorth) > 1e-6) fail('the original\'s swings did not count');
   if (!raised.helpers.includes(raised.me)) fail('the original is not among the builders');
 
-  // 5. a load handed to a copy cheers it
+  // 6. a load handed to a copy cheers it
   const gift = await ev(async () => {
     const s = window.__scene, n = s.npcs[1];
     n.needs.company = 0.1; n.needs.purpose = 0.1;
@@ -111,32 +148,6 @@ try {
   if (gift.carrying?.material !== 'stone' || gift.load) fail('the stone was not handed to the copy');
   if (!(gift.company > 0.25) || !(gift.purpose > 0.3)) fail('the copy was not cheered by the gift');
   if (gift.stone !== 2) fail('the stone did not reach the store');
-
-  // 6. rock: four swings break off stone
-  const rock = await ev(async () => {
-    const s = window.__scene, m = s.map, T = 16, base = s.baseCenter;
-    let best = null;
-    for (let ty = 1; ty < m.h - 1; ty++) for (let tx = 1; tx < m.w - 1; tx++) {
-      if (m.cells[ty * m.w + tx] !== 2 || m.cells[(ty + 1) * m.w + tx] !== 1) continue;
-      const d = Math.hypot(tx * T - base.x, ty * T - base.y);
-      if (!best || d < best.d) best = { tx, ty, d };
-    }
-    if (!best) return null;
-    const x = best.tx * T + 8, y = (best.ty + 1) * T + 6;
-    s.player.setPosition(x, y);
-    const aim = { x: 0, y: -1, lengthSq: () => 1 };
-    for (let i = 0; i < 4; i++) { s.resolveAttack(x, best.ty * T + 12, 12, aim); await new Promise((r) => setTimeout(r, 150)); }
-    await new Promise((r) => setTimeout(r, 600));
-    const load = s.hands.load && { ...s.hands.load };
-    // a fifth swing on the same rock right away gives nothing more
-    for (let i = 0; i < 4; i++) { s.resolveAttack(x, best.ty * T + 12, 12, aim); await new Promise((r) => setTimeout(r, 150)); }
-    await new Promise((r) => setTimeout(r, 600));
-    return { load, again: s.hands.load && { ...s.hands.load } };
-  });
-  log('rock', JSON.stringify(rock));
-  if (rock && (rock.load?.material !== 'stone' || rock.load?.n !== H.rockYield)) fail('rock gave no stone');
-  if (rock && rock.again?.n !== rock.load?.n) fail('the same rock gave stone twice in a row');
-  if (!rock) log('note: no rock on this world');
 
   // 7. leaving with a load: it goes into the store
   const stowed = await ev(() => {

@@ -2,8 +2,10 @@
 // the copy with no bed makes itself a resting station, the player climbs down, walks the warren and climbs back up.
 // Usage: npm run build && node tools/playtest-warren.mjs   (prints each step; fails loudly on page errors)
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import { chromium } from 'playwright';
 const port = 4183;
+const REST = JSON.parse(fs.readFileSync('src/data/supplies.json', 'utf8')).recipes.rest;
 const server = spawn('npx', ['vite', 'preview', '--port', String(port), '--strictPort'], { stdio: 'ignore', detached: true });
 for (;;) { try { if ((await fetch(`http://localhost:${port}/Replicated/`)).ok) break; } catch {} await new Promise((r) => setTimeout(r, 200)); }
 const errors = [];
@@ -32,24 +34,31 @@ try {
   if (!planned.r || !planned.r2 || planned.rooms !== 3) fail('rooms were not planned');
   if (planned.opened) fail('hatch open before anything is dug');
 
-  // 2. the first copy digs the way down (a chore on the surface), then a copy goes down and digs (rooms take wood)
-  await ev(() => { const s = window.__scene; s.supplies.wood = 5; s.npcs.forEach((n) => { n.state = 'idle'; n.until = 0; }); });
+  // 2. the first copy digs the way down (a chore on the surface), then a copy goes down and digs (a room takes only the
+  // digging: nothing waits for it once the way down is open)
+  await ev(() => { const s = window.__scene; s.npcs.forEach((n) => { n.state = 'idle'; n.until = 0; }); });
   await page.waitForFunction(() => window.__scene.warren.data.entrance.swings > 0, null, { timeout: 25000 }).catch(() => fail('nobody started digging the entrance'));
   log('entrance', await ev(() => JSON.stringify({ swings: window.__scene.warren.data.entrance.swings, frame: window.__scene.warren.hatchSprite.frame.name, digger: window.__scene.warren.entranceDigger?.npc.data.name })));
   await page.waitForFunction(() => window.__scene.warren.opened, null, { timeout: 30000 }).catch(() => fail('the entrance never got dug'));
   log('hole', await ev(() => JSON.stringify({ frame: window.__scene.warren.hatchSprite.frame.name, supplies: window.__scene.supplies })));
   if (!(await ev(() => (window.__scene.supplies.stone ?? 0) >= 4))) fail('the entrance dig yielded no stone');
+  const open = await ev(() => { const s = window.__scene; return { stone0: s.supplies.stone ?? 0, dug: s.warren.data.rooms.some((r) => r.dug), shortages: s.warren.shortages() }; });
+  log('nothing waits', JSON.stringify(open));
+  if (open.shortages.length) fail(`a planned room waits for something: ${open.shortages.join('; ')}`);
   await page.waitForFunction(() => window.__scene.warren.below.size > 0, null, { timeout: 25000 }).catch(() => fail('no copy went down the hatch'));
   log('below', await ev(() => JSON.stringify([...window.__scene.warren.below.values()].map((b) => ({ who: b.npc.data.name, task: b.task, room: b.room?.name, hidden: !b.npc.sprite.visible })))));
   await page.waitForFunction(() => window.__scene.warren.data.rooms.some((r) => r.dug), null, { timeout: 30000 }).catch(() => fail('room never got dug'));
   log('dug', await ev(() => JSON.stringify({ rooms: window.__scene.warren.data.rooms.map((r) => [r.name, r.dug]), supplies: window.__scene.supplies, opened: window.__scene.warren.opened, hatchFrame: window.__scene.warren.hatchSprite.frame.name })));
-  if (!(await ev(() => (window.__scene.supplies.wood ?? 0) < 5))) fail('digging the room spent no wood');
-  log('shortage check', await ev(() => window.__scene.warren.shortage({ wood: 99 })));
-  if (!(await ev(() => !!window.__scene.warren.shortage({ wood: 99 })))) fail('shortage() did not refuse an unaffordable recipe');
+  if (!open.dug && !(await ev((s0) => (window.__scene.supplies.stone ?? 0) > s0, open.stone0))) fail('digging the room won no stone');
+  // more stone than the store can ever hold (baseCap 40)
+  log('shortage check', await ev(() => window.__scene.warren.shortage({ stone: 99 })));
+  if (!(await ev(() => !!window.__scene.warren.shortage({ stone: 99 })))) fail('shortage() did not refuse an unaffordable recipe');
 
   // 3. the home drive: with a dug room and no bed, a copy makes itself a resting station
   await page.waitForFunction(() => window.__scene.warren.data.items.some((i) => i.kind === 'rest'), null, { timeout: 40000 }).catch(() => fail('nobody made a bed'));
   log('beds', await ev(() => JSON.stringify(window.__scene.warren.data.items.map((i) => [i.kind, i.room === 'entrance' ? 'entrance' : window.__scene.warren.nameOfRoom(i.room), i.for ? window.__scene.npcs.find((n) => n.data.id === i.for)?.data.name : '']))));
+  // a bed takes stone and nothing else (supplies.json recipes.rest)
+  if (Object.keys(REST).some((k) => k !== 'stone') || !REST.stone) fail(`a bed takes more than stone (${JSON.stringify(REST)})`);
 
   // 4. the canned mind digs and furnishes on its own
   const mind = await ev(async () => {
@@ -66,7 +75,7 @@ try {
   if (!mind.acts.includes('dig') && !mind.acts.includes('furnish')) fail('the canned mind never dug or furnished');
 
   // 5. down the hatch, with a copy at work below so we can watch it walk there (the pool room gets dug by hand)
-  await ev(() => { const s = window.__scene; const pool = s.warren.data.rooms.find((r) => r.kind === 'pool'); if (pool) pool.dug = true; s.supplies.wood = 9; s.supplies.stone = 9; });
+  await ev(() => { const s = window.__scene; const pool = s.warren.data.rooms.find((r) => r.kind === 'pool'); if (pool) pool.dug = true; s.supplies.stone = 9; });
   await page.waitForFunction(() => [...window.__scene.warren.below.values()].some((b) => b.task === 'dig' || b.task === 'furnish'), null, { timeout: 30000 }).catch(() => log('note: nobody is working below right now'));
   // walking across the hatch does not take you down: a moment on it, then off again
   const crossed = await ev(async () => { const s = window.__scene; s.player.locked = false; s.hatchReadyAt = 0; s.player.setPosition(s.warren.hatch.x, s.warren.hatch.y); await new Promise((r) => setTimeout(r, 120)); s.player.setPosition(s.warren.hatch.x + 40, s.warren.hatch.y + 30); await new Promise((r) => setTimeout(r, 400)); return !!window.__warren?.scene.isActive(); });

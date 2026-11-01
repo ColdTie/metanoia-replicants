@@ -214,13 +214,12 @@ export class Tutorial {
     return null;
   }
 
-  /** The nearest node (or tree, for wood) of any of these materials. */
+  /** The nearest node of any of these materials. */
   private nearestSource(materials: string[]): Pt | null {
     const s = this.s, p = s.player;
     let best: Pt | null = null, bd = TUT.wisp.maxPx;
     const consider = (x: number, y: number) => { const d = Math.hypot(x - p.x, y - p.y); if (d < bd) { bd = d; best = { x, y }; } };
     for (const n of s.nodes) if (n.alive && materials.includes(n.kind)) consider(n.x, n.y);
-    if (materials.includes('wood')) for (const t of s.trees) if (t.alive) consider(t.x, t.y);
     return best;
   }
 

@@ -101,7 +101,7 @@ try {
   await shot('bio-bed');
 
   // 4. the designs: stand in the Printworks' door. A House can be printed, the Nursery waits for one
-  await ev(() => { const s = window.__scene; for (const k of ['salt', 'iron', 'quartz', 'copper', 'wood']) s.supplies[k] = 38; s.markSupplies(); s.addEmbers(40); });
+  await ev(() => { const s = window.__scene; for (const k of ['salt', 'iron', 'quartz', 'copper']) s.supplies[k] = 38; s.markSupplies(); s.addEmbers(40); });
   await ev((goal) => { const s = window.__scene, g = s.buildings.list.find((x) => x.id === goal); s.bioworks.readyAt = 0; s.player.setPosition(g.x, g.y + 6); }, HW.goal);
   await page.waitForFunction(() => window.__game.scene.isActive('designs') && window.__designs?.rows?.length, null, { timeout: 8000 }).catch(() => fail('standing in the Printworks\' door did not open the designs'));
   await page.waitForTimeout(700);
@@ -193,11 +193,11 @@ try {
   // 6. a Storehouse raises the store; two prints at once and the bed is busy
   const cap = await ev(async () => {
     const s = window.__scene, c0 = s.warren.cap;
-    for (const k of ['salt', 'iron', 'quartz', 'copper', 'wood']) s.supplies[k] = 38;
+    for (const k of ['salt', 'iron', 'quartz', 'copper']) s.supplies[k] = 38;
     const st = s.buildings.print('storehouse');
     st.printStart = Date.now() - st.printMs - 50;
     await new Promise((r) => setTimeout(r, 1200));
-    for (const k of ['salt', 'iron', 'quartz', 'copper', 'wood']) s.supplies[k] = 38;
+    for (const k of ['salt', 'iron', 'quartz', 'copper']) s.supplies[k] = 38;
     s.addEmbers(40);
     const a = s.buildings.print('lantern'), b = s.buildings.print('lantern');
     return { before: c0, after: s.warren.cap, busy: s.buildings.whyNot('house'), two: !!a && !!b, locked: s.buildings.whyNot('supercomputer') };

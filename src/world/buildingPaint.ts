@@ -1,5 +1,5 @@
-// Draws a surface building from its blueprint: walls in the material's pattern (planks, stone blocks, riveted
-// scrap plates) in the copy's primary color, a roof (flat, peaked, dome) in its secondary, a door on the side it
+// Draws a surface building from its blueprint: walls in the material's pattern (stone blocks, riveted scrap
+// plates) in the copy's primary color, a roof (flat, peaked, dome) in its secondary, a door on the side it
 // asked for, a window with warm light, a 1px outline. Pure pixels, so one texture per building.
 import { PALETTE } from '../core/data';
 import { kitColor } from '../core/body';
@@ -37,10 +37,7 @@ export function paintBuilding(b: Building): PaintedBuilding {
   for (let y = wallTop; y < wallBottom; y++) for (let x = x0; x < x0 + W; x++) {
     let c = primary;
     const lx = x - x0, ly = y - wallTop;
-    if (b.material === 'wood') {
-      if (ly % 4 === 3) c = dark(c, 0.35);                      // plank seams
-      else if ((lx + ly * 7) % 23 === 0) c = dark(c, 0.15);     // grain
-    } else if (b.material === 'stone') {
+    if (b.material === 'stone') {
       const row = Math.floor(ly / 5), off = (row % 2) * 4;
       if (ly % 5 === 4 || (lx + off) % 8 === 7) c = dark(c, 0.4); // mortar
       else if ((lx * 3 + row * 5) % 11 === 0) c = light(c, 0.08);

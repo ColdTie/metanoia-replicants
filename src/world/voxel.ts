@@ -16,7 +16,7 @@ export interface DesignDef {
 export interface MaterialDef { ramp: number[]; alt?: number[]; glass?: boolean; emissive?: boolean }
 export interface Costing {
   weights: Record<string, number>; matWeight: number; special: Record<string, number>;
-  perVoxel: Record<string, Record<string, number>>; markup: number; woodPerComplexity: number;
+  perVoxel: Record<string, Record<string, number>>; markup: number;
   baseSeconds: number; secondsPerVoxel: number; secondsPerComplexity: number; nurseryCut: number;
   tiers: { below: number; name: string }[];
 }
@@ -106,12 +106,11 @@ export function buildModel(def: DesignDef, cat: Catalog): Model {
   for (const [m, n] of Object.entries(counts)) complexity += (C.special[m] ?? 0) * n;
   complexity = Math.round(complexity);
   const tier = C.tiers.find((t) => complexity < t.below)?.name ?? C.tiers[C.tiers.length - 1].name;
-  // the price: every voxel's material, marked up by complexity; the ants' and fungus' feed; the time
+  // the price: every voxel's material, marked up by complexity; the time
   const raw: Record<string, number> = {};
   for (const [m, n] of Object.entries(counts)) for (const [res, per] of Object.entries(C.perVoxel[m] ?? {})) raw[res] = (raw[res] ?? 0) + n * per;
   const cost: Record<string, number> = {};
   for (const [res, n] of Object.entries(raw)) cost[res] = Math.max(1, Math.ceil(n * (1 + complexity * C.markup)));
-  cost.wood = Math.max(1, Math.ceil(complexity * C.woodPerComplexity));
   const seconds = Math.round((C.baseSeconds + volume * C.secondsPerVoxel) * (1 + complexity * C.secondsPerComplexity));
   // print order: layer by layer, the back row first, the head running to and fro along each row
   const order: number[] = [];

@@ -1,7 +1,7 @@
 // The warren at runtime: the hole in a corner of the town square the first copy digs, which copy goes down to dig or to rest, how
-// far each dig has come, the planet's supplies (stone, soil, wood, scrap; Ember is the pool) and the
+// far each dig has come, the planet's supplies (stone, soil, scrap and the rest; Ember is the pool) and the
 // save. The copies decide the layout themselves (their minds call dig_room / furnish; the canned mind does too);
-// this turns those decisions into rooms (src/world/warren.ts), pays for them in wood, stone and the rest
+// this turns those decisions into rooms (src/world/warren.ts), pays for them in stone, soil and the rest
 // (src/data/supplies.json) and keeps planet_states.data.warren / data.supplies up to date. WarrenScene is the
 // view you walk through; it hooks `view` to see swings, finished rooms, songs and copies coming and going.
 import Phaser from 'phaser';
@@ -17,8 +17,8 @@ import { allRooms, digSpot, placeItem, placeRoom, restOf, type Dir, type ItemKin
 import type { Npc } from './Npc';
 
 export type BelowTask = 'dig' | 'rest' | 'furnish' | 'improve' | 'linger' | 'idle';
-/** What a copy does about the warren next: below (dig, furnish, rest) or on the surface (entrance, wood, scrap). */
-export type WarrenTask = { task: BelowTask | 'entrance' | 'wood' | 'scavenge'; room?: WarrenRoom; oreIndex?: number };
+/** What a copy does about the warren next: below (dig, furnish, rest) or on the surface (entrance, scrap). */
+export type WarrenTask = { task: BelowTask | 'entrance' | 'scavenge'; room?: WarrenRoom; oreIndex?: number };
 export interface Below {
   npc: Npc; task: BelowTask; room?: WarrenRoom; item?: WarrenItem;
   /** it has walked to where it works or sleeps (always true when nobody is watching) */
@@ -58,7 +58,6 @@ export class Warren {
   private digging = new Map<string, Npc>();
   private lastRest = new Map<string, number>();
   private entranceDigger: { npc: Npc; at: number } | null = null;
-  private nextWood = new Map<Npc, number>();
 
   constructor(private scene: PlanetScene, data: WarrenData | undefined) {
     this.data = data ? structuredClone(data) : { rooms: [], items: [] };
@@ -182,16 +181,12 @@ export class Warren {
   shortages(): string[] {
     const out: string[] = [];
     if (!this.opened) out.push('the way down is not dug yet');
-    for (const r of this.planned) {
-      const need = SUPPLIES.roomWood[r.size] - Math.floor(this.supplies.wood ?? 0);
-      if (need > 0) out.push(`${r.name} waits for ${need} more wood to shore it up (cut a tree)`);
-    }
     return out;
   }
 
   /**
-   * Time passed while nobody was here: the copies dug on (up to a few rooms,
-   * wood permitting) so the warren moves while you are away, the way the Ember pool does.
+   * Time passed while nobody was here: the copies dug on (up to a few rooms) so the warren moves while you are
+   * away, the way the Ember pool does.
    */
   applyOffline(hours: number) {
     if (hours <= 0.05) return;
@@ -203,7 +198,7 @@ export class Warren {
     for (const r of [...this.planned].sort((a, b) => a.at - b.at)) {
       if (dug >= SUPPLIES.offline.maxRoomsDugAway || hours < 0.25 * (dug + 1)) break;
       const anchorDug = r.link === 'entrance' || this.data.rooms.find((x) => x.id === r.link)?.dug;
-      if (!anchorDug || !this.data.entrance!.dug || Math.floor(this.supplies.wood ?? 0) < SUPPLIES.roomWood[r.size]) continue;
+      if (!anchorDug || !this.data.entrance!.dug) continue;
       this.finishRoom(r);
       dug++;
     }
@@ -270,8 +265,8 @@ export class Warren {
   // ------------------------------------------------------------ the copies' work
 
   /**
-   * What this copy should do about the warren now: dig the way down, shore up and dig a planned room (cutting a
-   * tree for the timber first), make its bed, pick scrap off iron ore, go to bed, or nothing.
+   * What this copy should do about the warren now: dig the way down, dig a planned room, make its bed, pick scrap
+   * off iron ore, go to bed, or nothing.
    */
   pickTask(npc: Npc, night: number): WarrenTask | null {
     const e = this.data.entrance!;
@@ -280,28 +275,21 @@ export class Warren {
       if (!this.entranceDigger) { this.entranceDigger = { npc, at: this.clock }; return { task: 'entrance' }; }
       return null;
     }
-    const wood = Math.floor(this.supplies.wood ?? 0);
-    const canCut = this.scene.treesNearBase(npc) > 0 && this.clock > (this.nextWood.get(npc) ?? 0);
-    const cut = () => { this.nextWood.set(npc, this.clock + 45_000); return { task: 'wood' } as WarrenTask; };
     // rooms that open off a dug room: the warren grows out from the ladder, never as islands
     const dug = new Set(['entrance', ...this.data.rooms.filter((r) => r.dug).map((r) => r.id)]);
     const open = this.planned.filter((r) => !this.digging.has(r.id) && dug.has(r.link ?? 'entrance'))
       .sort((a, b) => (a.by === npc.data.id ? 0 : 1) - (b.by === npc.data.id ? 0 : 1) || a.at - b.at);
     if (open.length) {
-      const room = open.find((r) => wood >= SUPPLIES.roomWood[r.size]);
-      if (room) { this.digging.set(room.id, npc); return { task: 'dig', room }; }
-      if (canCut) return cut();
+      const room = open[0];
+      this.digging.set(room.id, npc);
+      return { task: 'dig', room };
     }
     const bed = restOf(this.data, npc.data.id);
     if (!bed) {
-      // the home drive: a copy with no bed makes itself one in a dug room, once the stone and wood are there
+      // the home drive: a copy with no bed makes itself one in a dug room, once the stone is there
       const room = allRooms(this.data).filter((r) => r.dug && r.id !== 'entrance' && this.roomHasSpot(r.name, 'rest'))
         .sort((a, b) => (a.kind === 'rest' ? 0 : 1) - (b.kind === 'rest' ? 0 : 1) || (a.by === npc.data.id ? 0 : 1) - (b.by === npc.data.id ? 0 : 1))[0];
-      if (room) {
-        const short = this.shortage(RECIPES.rest);
-        if (!short) return { task: 'furnish', room };
-        if (short.includes('wood') && canCut) return cut();
-      }
+      if (room && !this.shortage(RECIPES.rest)) return { task: 'furnish', room };
     }
     // a full store of stone: make a room finer
     const better = Math.random() < 0.5 ? this.roomToImprove() : null;
@@ -493,11 +481,10 @@ export class Warren {
     else this.leave(npc);
   }
 
-  /** The room is cut: timber spent, stone and soil won. */
+  /** The room is cut: stone and soil won. */
   private finishRoom(room: WarrenRoom) {
     room.dug = true;
     this.digging.delete(room.id);
-    this.supplies.wood = Math.max(0, Math.round(((this.supplies.wood ?? 0) - SUPPLIES.roomWood[room.size]) * 100) / 100);
     const tiles = room.w * room.h;
     this.add('stone', tiles * SUPPLIES.digYield.stonePerTile);
     this.add('soil', tiles * SUPPLIES.digYield.soilPerTile);

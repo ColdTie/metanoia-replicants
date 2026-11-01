@@ -71,10 +71,10 @@ and password. One login per person, one Vessel per login (the letters-and-number
 1. Explore: move around a procedurally generated planet surface (seeded), one biome, with ruins and resource nodes.
 2. Fight: one tap attack with a generous hitbox, two enemy types, enemies drop resources.
 3. Gather and build: resource counter, a base area near the landing site, place the Replicator with one button when you have enough.
-   Since 2026-10-27 (story/STORY.md) building is the Cems': gather salt, iron, quartz, copper, wood and Ember, pick a
-   design at the Printworks, and the ants ship the supplies to the print while the Cems build it. The bed travels: the
-   ship carries a culture from every awake bed and seeds one on any world; where a bed is awake the Cems print the
-   copies' buildings too (one building system).
+   Since 2026-10-27 (story/STORY.md) building is the Cems': gather salt, iron, quartz, copper and Ember (wood is gone
+   since 2026-11-01), pick a design at the Printworks, and the ants ship the supplies to the print while the Cems
+   build it. The bed travels: the ship carries a culture from every awake bed and seeds one on any world; where a bed
+   is awake the Cems print the copies' buildings too (one building system).
 4. Replicate: the Replicator creates a copy with drift. Copy becomes an NPC that walks around the base and generates resources while you are away.
    Since 2026-10-28 (plan step 1): a copy takes a Nous Chip (the Cems print it on their bed once the Supercomputer
    stands) as well as its Ember; the Replicator prints the body by the clock, quickly where the Cems are awake, slowly
@@ -285,13 +285,14 @@ src/scenes/WarrenScene   underground view over the paused planet: walk, dash, la
                          the rock face; the ladder takes you back up
 src/data/needs.json      the copies' needs (rest, company, purpose): decay hours, company range, purpose per work, lamp and mural effects
 src/data/buildings.json  surface buildings: footprint limits, cost per tile and material, roofs, doors, approval delay
-src/world/buildingPaint.ts draws a building from its blueprint (planks / blocks / plates, flat / peaked / dome roof, door, window)
+src/world/buildingPaint.ts draws a building from its blueprint (stone blocks / scrap plates, flat / peaked / dome roof, door, window)
 src/entities/Buildings.ts proposals, the original's approve / veto, paying, shared raising, offline progress; the
                          communal Meeting Hall / Workshop / Lookout the village starts on its own when the store is full;
                          Cem prints (Building.design, printStart, printMs): paid at once, on the free lot nearest the
                          square (a lantern at a free street lamp spot), risen by the clock (also offline), redrawn as
                          rows settle, lit and solid when done; whyNot / print / fraction / homeMood / storeBonus
-src/data/supplies.json   materials (stone, soil, wood, scrap, Ember, iron, hydrogen), yields, storage, recipes
+src/data/supplies.json   materials (stone, soil, scrap, Ember, iron, hydrogen, salt, quartz, copper and each world's
+                         own), yields, storage, recipes; no wood (trees are scenery)
 src/data/items.json      Ember, iron and hydrogen: node hits, drops, colors, how many per world
 src/data/manny.json      husks (mannies in code): cost (iron + hydrogen), where the vault stands, the doorway dwell
 src/core/mannies.ts      which worlds have your manny, whether you drive one, where the vessel is (traits.ship)
@@ -318,14 +319,15 @@ src/ui/talk.ts           what a copy says when you talk to it: pages SAYS (trait
 src/ui/dialogue.ts       the talk box at the bottom (portrait, name, pages, typing in the copy's voice, reply line);
                          drawn in the 'prose' font (tools/sprites/font-prose.json: mixed case with descenders)
 src/scenes/planet/       PlanetScene's parts, each a class holding the scene as `s` and made once with it: Hands (the
-                         original's own work: felling, stone, scrap, the load above the head, handing it over,
-                         swinging at a building, a copy's need over its head; supplies.json hands), Homecoming (what
-                         changed since data.seen as a wordless camera tour, letters as envelopes by the vessel;
-                         return.json), Talk (the
-                         talk box), Minds (wakes, mind context, away replay, chorus, the journal and its actions,
-                         copies' chores), Saving (planet delta, replicant row), Town (migration, lots, gifts),
-                         Departure (board ring, star map, lift-off); shared.ts holds their helpers. The scene keeps
-                         one-line delegates for what entities and playtests reach (scene.mindLog, scene.requestTalk...)
+                         original's own work: stone off rock, the load above the head, handing it over, swinging at
+                         a building, a copy's need over its head; a swing at a tree does nothing, trees are scenery;
+                         supplies.json hands), Homecoming (what changed since data.seen as a wordless camera tour,
+                         letters as envelopes by the vessel; return.json), Talk (the talk box), Minds (wakes, mind
+                         context, away replay, chorus, the journal and its actions, copies' chores; a copy's cut_tree
+                         fells a tree to make room and gains nothing), Saving (planet delta, replicant row), Town
+                         (migration, lots, gifts), Departure (board ring, star map, lift-off); shared.ts holds their
+                         helpers. The scene keeps one-line delegates for what entities and playtests reach
+                         (scene.mindLog, scene.requestTalk...)
 src/scenes/              Boot (assets) -> Home (sign-in, profile picker) -> Planet (world, saving) + UI (counter, title, touch)
                          Planet <-> StarMap (overlay) -> Travel -> Planet (arrival); Home goes to Travel while in flight
 supabase/migrations/     schema applied to the "Replicated" Supabase project (keep in sync when changing the DB)
@@ -403,8 +405,9 @@ playtest, about 6 minutes; `npm test -- talk town` runs only those), `npm run sp
 work, the printer folding away, talk, give),
 `node tools/playtest-return.mjs` (beats from an older snapshot, the tour gives the player back, a key skips it, a letter
 waits by the vessel and opens the sender's letters),
-`node tools/playtest-carry.mjs` (fell trees and carry the wood, a copy shows what its building waits for, the load pays
-it, swings raise it, a load handed to a copy, stone from rock, a load stowed when leaving),
+`node tools/playtest-carry.mjs` (stone from rock carried above the head, a swing at a tree leaves it standing, a copy
+shows what its building waits for, the load pays it, swings raise it, a load handed to a copy, a load stowed when
+leaving),
 `node tools/playtest-together.mjs` (a lonely copy seeks company, the Meeting Hall starts itself and gathers them, a
 room is improved, an away wake plays out, a Spark awakens a copy as a player),
 `node tools/playtest-town.mjs [seed.json] [--port n] [--shots]` (an old save moves into the town once, nothing lost; the
@@ -453,8 +456,8 @@ migration 0009), which merges only those keys, so a game left open never undoes 
 
 Controls: move WASD/arrows/left stick/left-side touch drag. Attack Space/J/Enter/Z, left click, gamepad A/X/R1, tap right
 side (three quick attacks = heavy combo finisher; presses during the cooldown are buffered). With nothing alive in
-reach, a swing works on the village: a tree (6 swings fell it), rock (4 break off stone), a building being
-raised (a blow). Walk into a building waiting for what you carry, a copy, or the hatch to
+reach, a swing works on the village: rock (4 break off stone), a building being raised (a blow); trees are scenery
+and a swing at one does nothing. Walk into a building waiting for what you carry, a copy, or the hatch to
 hand the load over. Stand on the open hatch for a moment (a warm ring fills) or press attack on it to go down; walking
 or dashing across it never does. At the Replicator (attack on its ring with a Nous Chip and enough Ember; without them
 what is missing rises from it) two lights open over it: WAKE (left) and HOLD (right);
@@ -505,6 +508,46 @@ Sessions 1 to 22 (the vertical slice through the Cems' swift strain) are in `doc
 6. GitHub: require the "test" status check on main.
 7. Step 2 of `docs/plan-metanoia.md` (joining by invite link) waits for Steve's yes to its migration, the redirect URL
    check in Supabase, and an email address each for Linda and Freya.
+
+### Session 27 (2026-11-01): wood is gone (Steve: "lets remove wood and not replace it with anything ... It just doesnt make sense")
+- **No wood anywhere.** It is no longer a material: not in any store, cost, recipe, carry limit, readout, icon or
+  colour map, the hold's cargo, the minds' tools and prompts or the tests (`supplies.json` has no `materials.wood`,
+  `treeWood`, `roomWood`, `hands.carry.wood` or `hands.treeHits`). Nothing replaces it: a mixed cost just lost its
+  wood, a cost that was only wood is free. Frame 2 of `tools/sprites/supplies.json` (the wood icon) stays, unused:
+  icons are addressed by index.
+- **Trees are scenery.** They stand and block as before, but the player's swing no longer chips or fells them (it goes
+  on to the rock check as if no tree were there). A copy's `cut_tree` still fells a tree near the base or its home to
+  make room, and gains nothing; the copies' own timber chore (the warren's `wood` task) and the canned mind's random
+  cut are gone; away actions of type `cut` already queued replay as that clearing. Trees felled in a save
+  (`data.felled`) stay down. The trees a copy may cut are `PlanetScene.cuttableTrees`, within `town.json cutRadiusPx`
+  of the base or `cutHomeRadiusPx` of its home (they were `woodTrees`, `woodRadiusPx`, `woodHomeRadiusPx`).
+- **The warren.** A planned room is dug without timber (the entrance and anchor rules as before; while you are away
+  still at most `maxRoomsDugAway`). Furnishings: a bed (`rest`) takes stone 2, a bench only a workbench, a shelf stone
+  1 and a workbench, a workbench scrap 1, a planter soil 2 and a workbench, a crate nothing.
+- **The copies' buildings** are stone or scrap (`buildings.json materials`); the communal Meeting Hall is stone; a
+  proposal with no material or an unknown one is stone. On load a saved wooden building becomes stone, and a building
+  not yet paid drops wood from its cost (one left empty is free); paid and built ones keep their cost as it was. The
+  Cems lay stone as pale salt and scrap as steel (`designs.ts WALLS`); `buildingPaint` draws blocks and plates.
+- **The Cems' designs cost no wood** (`voxel.ts`; `designs.json costing` has no `woodPerComplexity`; the ants carry a
+  print's supplies). No other price changed, so each design is cheaper by its wood: the Lantern salt 1, iron 1, quartz
+  1, Ember 1; the Supercomputer 84 in all (it was 96); the nine designs before the chip salt 108, iron 86, quartz 51,
+  copper 37, Ember 27. The Nous Chip is copper 9, iron 6, quartz 11, Ember 12 (it also took wood 12), so a Vessel is
+  that much cheaper. Nothing was raised to make up for it (Steve: "not replace it with anything"); a rebalance is his
+  to ask for. The homeworld's Printworks waits for salt 6, iron 4, Ember 8, copper 6, quartz 6 (`homeworld.json`), and
+  Thales says "Salt, iron and Ember you will find here. Copper and quartz this world gave to the founding: there is
+  none left."
+- **Old saves, no database change.** A store that still holds wood (live: LHS 1140 b 24, Earth 13) drops it on load
+  and is saved again without it (`apply_planet_delta` replaces `data.supplies` whole); the mind function drops it too
+  when an away pass loads a world, and drops wood from the cost of a building not yet paid. The copies' past words
+  about wood (notes, letters, `tell`) are their own and stay; their next wakes see no wood.
+- **The minds** (`supabase/functions/mind/index.ts`): `design_building` takes stone or scrap (stone by default); no
+  room waits for timber and no hint says to cut a tree; an empty recipe reads "nothing"; the away pass digs and
+  furnishes by the game's warren rules. `tools/build-mind-kit.mjs` writes no `roomWood` into the kit.
+- **Kept:** lignin, the Cems' own material (`story/STORY.md`: "similar to wood but layered like metals"), and the
+  "woody" timbre words in `Sound.ts`.
+- **The bible:** `story/STORY.md` The beginning, step 2, in Steve's words: "Salt, iron and Ember are found on the
+  homeworld."
+- Verified: (filled in by the lead)
 
 ### Session 26 (2026-11-01): the game fills a phone held sideways (Steve, on an iPhone in Chrome: "the screen seems to be too small")
 - **What it was:** the game drew a fixed 480x270 (16:9) and was fitted into what the phone shows. In Chrome on the iPhone

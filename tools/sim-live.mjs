@@ -1,6 +1,6 @@
 // Gives the copies time to live: loads each planet from a snapshot of the live data (planet_states + its copies,
 // written by hand from Supabase into a JSON file), plays it headless for N minutes in ?sim mode (device storage,
-// the copies' minds asleep so they only act on their own plans: dig, cut, make beds, build, raise), and writes
+// the copies' minds asleep so they only act on their own plans: dig, make beds, build, raise), and writes
 // what changed to an output file for the write-back.
 // Usage: npm run build && cp -r dist dist-sim && node tools/sim-live.mjs <seed.json> <out.json> [--minutes 10] [--parallel 4]
 import { spawn } from 'node:child_process';

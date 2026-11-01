@@ -19,7 +19,8 @@ const errors = [];
 const log = (...a) => console.log(...a);
 const fail = (m) => { errors.push(m); log('FAIL', m); };
 
-// an old Earth: four copies, each with six builds in the ring around the old base, a built tower, a dug warren
+// an old Earth: four copies, each with six builds in the ring around the old base, a built tower, a dug warren, and
+// wood in its store (an older save may still hold some; it is not a material)
 function madeUpEarth() {
   const ids = ['c1', 'c2', 'c3', 'c4'];
   const kinds = ['hut', 'lamp', 'garden', 'flag', 'sign', 'totem'];
@@ -95,6 +96,10 @@ try {
   if (JSON.stringify(before) !== JSON.stringify(after)) fail('the saved structures differ from the old ones (lost or duplicated)');
   if (Object.values(saved1.nodes ?? {}).some((n) => n.hits)) fail('old crystal damage was carried over');
   if ((saved1.felled ?? []).length) fail('old felled trees were carried over');
+  // an old save's wood leaves the store (and the save) on its first load; the rest of the store stays
+  const store = await ev(() => ({ ...window.__scene.supplies }));
+  if ('wood' in store || 'wood' in (saved1.supplies ?? {})) fail('wood from an old save stayed in the store');
+  for (const k of Object.keys(p.data.supplies ?? {})) if (k !== 'wood' && !(k in store)) fail(`the old store lost its ${k}`);
   log('saved', JSON.stringify({ layout: saved1.layout, town: saved1.town, hatch: saved1.warren?.hatch, buildings: saved1.buildings?.map((x) => [x.name, x.x, x.y, x.built]) }));
 
   // 2. open ground: rays and shortest-walk detours from the base (the lead's baseline method)
@@ -133,7 +138,7 @@ try {
   log('ways', JSON.stringify(ways));
   if (ways.some((w) => w.miss.length)) fail('a copy cannot reach something it needs');
   if (ways.some((w) => !w.crystals)) fail('a copy has no crystal within reach of home');
-  if (ways.some((w) => !w.trees)) log('note: a copy has no tree near home (the base radius still gives wood)');
+  if (ways.some((w) => !w.trees)) log('note: a copy has no tree near home');
 
   // 4. let them live a minute: nobody stands stuck in a walk for long
   await ev(() => { const s = window.__scene; s.village.work = 40; s.npcs.forEach((n) => { n.nextBuild = 0; n.nextTrip = 0; }); window.__stuck = {}; window.__walked = {}; });

@@ -8,10 +8,9 @@ import type { PlanetScene } from '../PlanetScene';
 
 const H = SUPPLIES.hands;
 const MATERIALS = SUPPLIES.materials as Record<string, { icon: number; color: number }>;
-type Tree = PlanetScene['trees'][number];
 
 /**
- * The original's own hands in the village: felling a tree, breaking stone off rock; the load rides above the head
+ * The original's own hands in the village: breaking stone off rock (trees are scenery); the load rides above the head
  * and is handed over by walking into a building that waits for it, the hatch or a copy;
  * swings at a building being raised count with the copies' blows. Tunables: src/data/supplies.json hands.
  * Part of PlanetScene (src/scenes/PlanetScene.ts); `s` is the scene.
@@ -22,7 +21,7 @@ export class Hands {
   /** what rides above the head */
   load: { material: string; n: number } | null = null;
   private stack: Phaser.GameObjects.Image[] = [];
-  /** chips on a tree or a rock tile, healed after hitsForgetMs */
+  /** chips on a rock tile, healed after hitsForgetMs */
   private chips = new Map<string, { hits: number; at: number }>();
   /** rock tiles stone was taken from, and when */
   private rockTaken = new Map<number, number>();
@@ -42,11 +41,6 @@ export class Hands {
     const s = this.s;
     if (s.visit) return false;
     if (s.buildings.playerSwing(hx, hy, radius)) return true;
-    for (const t of s.trees) {
-      if (!t.alive || Math.hypot(t.x - hx, t.y - 6 - hy) > radius + 6) continue;
-      this.chipTree(t);
-      return true;
-    }
     return this.chipRock(hx, hy);
   }
 
@@ -57,32 +51,6 @@ export class Hands {
     if (hits >= need) { this.chips.delete(key); return true; }
     this.chips.set(key, { hits, at: now });
     return false;
-  }
-
-  private chipTree(t: Tree) {
-    const s = this.s;
-    s.fx.sparks(t.x + (Math.random() - 0.5) * 6, t.y - 10 - Math.random() * 8, PALETTE[s.planet.accent[1]], 3);
-    sound.hit();
-    s.tweens.add({ targets: t.sprite, angle: { from: -3, to: 3 }, duration: 60, yoyo: true, repeat: 1 });
-    if (!this.chip(`t${t.index}`, H.treeHits)) return;
-    this.fell(t, s.player.x);
-    s.time.delayedCall(900, () => this.take('wood', SUPPLIES.treeWood, { x: t.x, y: t.y - 6 }));
-    s.mindLog.push({ t: s.mindClock, text: `${session.replicant?.name ?? 'the original'} cut down a tree` });
-  }
-
-  /** A tree comes down away from `fromX` and is gone for good (planet_states.data.felled). Copies use it too. */
-  fell(t: Tree, fromX: number) {
-    const s = this.s;
-    if (!t.alive) return;
-    t.alive = false;
-    t.zone.destroy();
-    const dir = fromX < t.x ? 1 : -1;
-    s.tweens.add({ targets: t.sprite, angle: 84 * dir, duration: 700, ease: 'Quad.easeIn', onComplete: () => {
-      s.fx.dust(t.x + dir * 12, t.y, 10);
-      if (Math.hypot(s.player.x - t.x, s.player.y - t.y) < 220) sound.stomp();
-      s.tweens.add({ targets: t.sprite, alpha: 0, duration: 1200, delay: 600, onComplete: () => t.sprite.destroy() });
-    } });
-    s.pending.felled = [...new Set([...(session.planet?.data.felled ?? []), ...(s.pending.felled ?? []), t.index])];
   }
 
   /** Rock under the swing (or just above it: walls are hit from below). */

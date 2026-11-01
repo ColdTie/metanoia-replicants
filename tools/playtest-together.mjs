@@ -3,8 +3,13 @@
 // improves a warren room (and the painting shows it); what the copies did in an away wake plays out on landing;
 // a Vessel held asleep is given to a new player (no Spark). Usage: npm run build && node tools/playtest-together.mjs
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import { chromium } from 'playwright';
 const port = 4186;
+const BUILDINGS = JSON.parse(fs.readFileSync('src/data/buildings.json', 'utf8'));
+const HALL = BUILDINGS.communal.kinds.find((k) => k.kind === 'hall');
+// the Meeting Hall is paid in stone, every tile of it
+const HALL_COST = { stone: Math.ceil(HALL.w * HALL.h * BUILDINGS.materials.stone.perTile) };
 const server = spawn('npx', ['vite', 'preview', '--port', String(port), '--strictPort'], { stdio: 'ignore', detached: true });
 for (;;) { try { if ((await fetch(`http://localhost:${port}/Replicated/`)).ok) break; } catch {} await new Promise((r) => setTimeout(r, 200)); }
 const errors = [];
@@ -33,14 +38,17 @@ try {
   if (!(gain > 0.15)) fail(`standing together fills company too slowly (${gain})`);
   if (Math.min(...visit.near) > 40) fail('the lonely copy is not beside anyone');
 
-  // 2. a full store of wood: the Meeting Hall starts on its own (already approved), is raised, and gathers them
-  await ev(() => { const s = window.__scene; s.supplies.wood = s.warren.cap; s.buildings.nextCommunal = 0; s.npcs.forEach((n) => { n.state = 'idle'; n.until = 0; n.nextBuild = 0; n.needs.company = 0.9; }); });
+  // 2. a full store of stone: the Meeting Hall starts on its own (already approved), is raised, and gathers them
+  await ev(() => { const s = window.__scene; s.supplies.stone = s.warren.cap; s.buildings.nextCommunal = 0; s.npcs.forEach((n) => { n.state = 'idle'; n.until = 0; n.nextBuild = 0; n.needs.company = 0.9; }); });
   await page.waitForFunction(() => window.__scene.buildings.list.some((x) => x.kind === 'hall'), null, { timeout: 20000 }).catch(() => fail('no Meeting Hall was started'));
-  const hall = await ev(() => { const h = window.__scene.buildings.list.find((x) => x.kind === 'hall'); return h && { name: h.name, approved: h.approved, cost: h.cost }; });
+  const hall = await ev(() => { const h = window.__scene.buildings.list.find((x) => x.kind === 'hall'); return h && { name: h.name, approved: h.approved, material: h.material, cost: h.cost }; });
   log('hall', JSON.stringify(hall));
   if (hall && !hall.approved) fail('the communal hall waited for approval');
+  if (hall && (hall.material !== 'stone' || JSON.stringify(hall.cost) !== JSON.stringify(HALL_COST))) fail(`the Meeting Hall is not paid in stone (${JSON.stringify(hall.cost)})`);
   await page.waitForFunction(() => window.__scene.buildings.list.find((x) => x.kind === 'hall')?.progress > 0, null, { timeout: 30000 }).catch(() => fail('nobody raised the hall'));
-  log('wood after paying', await ev(() => window.__scene.supplies.wood));
+  const hallPaid = await ev(() => ({ paid: window.__scene.buildings.list.find((x) => x.kind === 'hall')?.paid, stone: window.__scene.supplies.stone }));
+  log('stone after paying', JSON.stringify(hallPaid));
+  if (!hallPaid.paid) fail('the Meeting Hall was raised without being paid');
   await ev(() => { const s = window.__scene; const h = s.buildings.list.find((x) => x.kind === 'hall'); h.progress = s.buildings.swingsFor(h) - 1; });
   await page.waitForFunction(() => window.__scene.buildings.list.find((x) => x.kind === 'hall')?.built, null, { timeout: 30000 }).catch(() => fail('the hall never finished'));
   const spot = await ev(() => window.__scene.buildings.gatheringSpot());

@@ -194,7 +194,6 @@ export class PlanetScene extends Phaser.Scene {
   wake(npc: Npc) { return this.minds.wake(npc); }
   replayAway(items: AwayItem[]) { this.minds.replayAway(items); }
   chorus(force = false) { this.minds.chorus(force); }
-  cutTree(npc: Npc) { return this.minds.cutTree(npc); }
   toggleJournal() { return this.minds.toggleJournal(); }
   talkTo(id: string, text: string) { return this.minds.talkTo(id, text); }
   giveTo(id: string) { this.minds.giveTo(id); }
@@ -314,6 +313,11 @@ export class PlanetScene extends Phaser.Scene {
     session.planet = save;
     this.embers = save?.embers ?? 0;
     this.supplies = { ...(save?.data.supplies ?? {}) };
+    // wood is not a material: an older save that still holds some is saved again without it
+    if ('wood' in this.supplies) {
+      delete this.supplies.wood;
+      if (!this.shot && !this.visit) this.pending.supplies = { ...this.supplies };
+    }
     this.awayHours = 0;
 
     this.lighting = new Lighting(this, hex(p.ambient), DEPTH.dark);
@@ -749,7 +753,7 @@ export class PlanetScene extends Phaser.Scene {
       const goal = this.buildings.list.find((b) => b.id === HOMEWORLD.goal);
       if (goal && !goal.built) this.buildings.finishNow(goal.id);
       this.bioworks?.wake(false);
-      for (const k of ['salt', 'iron', 'quartz', 'copper', 'wood']) this.supplies[k] = 38;
+      for (const k of ['salt', 'iron', 'quartz', 'copper']) this.supplies[k] = 38;
       this.markSupplies();
       this.embers = Math.max(this.embers, 40);
       const bw = this.bioworks;
@@ -826,7 +830,7 @@ export class PlanetScene extends Phaser.Scene {
       if (goal && !goal.built) this.buildings.finishNow(goal.id);
       this.bioworks.wake(false);
       this.buildings.standNow('supercomputer');
-      for (const k of ['salt', 'iron', 'quartz', 'copper', 'wood']) this.supplies[k] = 38;
+      for (const k of ['salt', 'iron', 'quartz', 'copper']) this.supplies[k] = 38;
       this.embers = Math.max(this.embers, 40);
       const b = this.buildings.print(DRIFT.chip);
       if (b) { b.printStart = Date.now() - (b.printMs ?? 0) * 2; this.buildings.update(this.time.now, 0); }
@@ -909,15 +913,15 @@ export class PlanetScene extends Phaser.Scene {
     this.game.events.emit('embers', this.embers, true);
   }
 
-  /** Trees a copy may cut for wood: near the base or near its own home (the town itself is kept clear of trees). */
-  woodTrees(npc?: Npc) {
+  /** Trees a copy may cut down to make room: near the base or near its own home (the town itself is kept clear of trees). */
+  cuttableTrees(npc?: Npc) {
     const base = this.baseCenter, home = npc?.home;
-    return this.trees.filter((t) => t.alive && (Math.hypot(t.x - base.x, t.y - base.y) < TOWN_TUNING.woodRadiusPx
-      || (!!home && Math.hypot(t.x - home.x, t.y - home.y) < TOWN_TUNING.woodHomeRadiusPx)));
+    return this.trees.filter((t) => t.alive && (Math.hypot(t.x - base.x, t.y - base.y) < TOWN_TUNING.cutRadiusPx
+      || (!!home && Math.hypot(t.x - home.x, t.y - home.y) < TOWN_TUNING.cutHomeRadiusPx)));
   }
 
   treesNearBase(npc?: Npc) {
-    return this.woodTrees(npc).length;
+    return this.cuttableTrees(npc).length;
   }
 
   /** Material icons arc from where they were won to the hatch (or the Replicator) and join the supplies. */
@@ -1347,7 +1351,7 @@ export class PlanetScene extends Phaser.Scene {
       sound.mineral(n.kind);
       hit = true;
     }
-    // nothing alive in reach: the swing works on the village (a tree, rock, a building being raised)
+    // nothing alive in reach: the swing works on the village (rock, a building being raised); trees are scenery
     if (!hit && this.hands.swing(hx, hy, radius)) hit = true;
     for (const sp of this.spores) {
       if (sp.dead || sp.reflected || Math.hypot(sp.x - hx, sp.y - hy) > radius + 8) continue;
