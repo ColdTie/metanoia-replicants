@@ -8,13 +8,13 @@ import { UIScene } from './scenes/UIScene';
 import { WarrenScene } from './scenes/WarrenScene';
 import { VaultScene } from './scenes/VaultScene';
 import { DesignScene } from './scenes/DesignScene';
-import { fitToVisibleScreen } from './core/viewport';
+import { fitToVisibleScreen, GAME_H, startWidth } from './core/viewport';
 
 const game = new Phaser.Game({
   type: Phaser.WEBGL,
   parent: 'game',
-  width: 480,
-  height: 270,
+  width: startWidth(), // 480 on a 16:9 screen, wider on a phone held sideways (src/core/viewport.ts)
+  height: GAME_H,
   pixelArt: true,
   roundPixels: true,
   backgroundColor: '#181425',

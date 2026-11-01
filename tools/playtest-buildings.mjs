@@ -44,7 +44,11 @@ try {
   await page.waitForTimeout(600);
   log('approved', await ev(() => JSON.stringify({ approved: window.__scene.buildings.list[0].approved, journalOpen: !!document.querySelector('.jn') })));
   await ev(() => { document.querySelector('.jn')?.remove(); });
-  await page.waitForFunction(() => window.__scene.buildings.list[0].progress > 0, null, { timeout: 25000 }).catch(() => fail('nobody joined the raising'));
+  // a copy finishes the chore it is on before it comes (felling a tree takes a while): 7 to 20 s here, more on a slow
+  // runner, so the wait is as long as the one for the finished building below; the time it took is logged
+  const tApproved = Date.now();
+  await page.waitForFunction(() => window.__scene.buildings.list[0].progress > 0, null, { timeout: 60000 }).catch(() => fail('nobody joined the raising'));
+  log('joined after', `${((Date.now() - tApproved) / 1000).toFixed(1)}s`, await ev(() => JSON.stringify({ width: window.__game.scale.width, fps: Math.round(window.__game.loop.actualFps), copies: window.__scene.npcs.map((n) => n.state) })));
   // approved, it is printed: a printer stands beside it and its head moves with every blow
   await page.waitForTimeout(1500);
   await ev(() => { const s = window.__scene, bl = s.buildings.list[0]; s.cameras.main.stopFollow(); s.cameras.main.centerOn(bl.x, bl.y - 10); });

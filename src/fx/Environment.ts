@@ -6,6 +6,7 @@ import { DAYCYCLE, PALETTE, hex, type PlanetDef } from '../core/data';
 import type { Atmosphere } from './Atmosphere';
 import type { Light, Lighting } from './Lighting';
 import { makeRays, makeWeatherBits, rgb } from './textures';
+import { MAX_W, MIN_W, onScreenSize } from '../core/viewport';
 
 interface Firefly { x: number; y: number; vx: number; vy: number; phase: number; light?: Light; dot: Phaser.GameObjects.Image }
 
@@ -67,7 +68,8 @@ export class Environment {
 
   constructor(private scene: Phaser.Scene, private planet: PlanetDef, private lighting: Lighting, private atmosphere: Atmosphere,
     private isGround: (x: number, y: number) => boolean, shotHour?: number) {
-    const { width: w, height: h } = scene.scale;
+    // the screen-fixed layers are as wide as the game can get (src/core/viewport.ts): the part past the edge is not drawn
+    const { height: h } = scene.scale, w = MAX_W;
     this.fixedHour = new URLSearchParams(location.search).has('hour') || shotHour !== undefined;
     this.hour = currentHour(shotHour);
     if (!planet.dayCycle) return;
@@ -99,6 +101,9 @@ export class Environment {
         alpha: { min: 0.3, max: 0.7 },
         emitting: false,
       }).setDepth(6130);
+      // as heavy on a wide screen: the zone follows the game's width and the rate grows with it
+      const rain = this.rain;
+      onScreenSize(scene, (sw) => { zone.width = sw + 120; rain.frequency = 6 / ((sw + 120) / (MIN_W + 120)); });
       this.ripples = scene.add.particles(0, 0, 'ring', {
         lifespan: 450,
         scale: { start: 0.2, end: 1 },

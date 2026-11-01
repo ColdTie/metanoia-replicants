@@ -31,7 +31,7 @@ import { Atmosphere } from '../fx/Atmosphere';
 import { Environment } from '../fx/Environment';
 import { Fx } from '../fx/Fx';
 import { Lighting } from '../fx/Lighting';
-import { makeVignette } from '../fx/textures';
+import { vignetteFor } from '../fx/textures';
 import { Controls } from '../input/Controls';
 import type { AwayItem, SeenState, Building, Gift, NodeState, PlanetData, PlanetSave, ReplicantSave, WarrenData } from '../net/store';
 import { paintGround } from '../world/groundPaint';
@@ -54,6 +54,7 @@ import { Town } from './planet/Town';
 import { NO_INPUT, kitLists } from './planet/shared';
 import { PARTS } from '../core/body';
 import HOMEWORLD from '../data/homeworld.json';
+import { onScreenSize } from '../core/viewport';
 
 export const DEPTH = { ground: 0, walls: 1, shadow: 50, actors: 100, fog: 5000, dark: 6000, glow: 6100, fx: 6150, ui: 6300, vignette: 7000 };
 
@@ -303,7 +304,6 @@ export class PlanetScene extends Phaser.Scene {
     npcRows = birthOrder(npcRows);
     session.planet = save;
     const p = this.planet;
-    const { width, height } = this.scale;
     this.map = generatePlanet(p, this.seed ?? p.seed);
     const tGen = performance.now();
     const m = this.map;
@@ -491,8 +491,12 @@ export class PlanetScene extends Phaser.Scene {
     cam.startFollow(this.player.zone, true, 0.1, 0.1, 0, 8);
     cam.centerOn(start.x, start.y);
 
-    makeVignette(this, width, height);
-    this.add.image(0, 0, 'vignette').setOrigin(0).setScrollFactor(0).setDepth(DEPTH.vignette);
+    const vignette = this.add.image(0, 0, vignetteFor(this)).setOrigin(0).setScrollFactor(0).setDepth(DEPTH.vignette);
+    // one vignette at a time: the one for the old size is freed (a dragged window passes through many widths)
+    onScreenSize(this, () => {
+      const old = vignette.texture.key, key = vignetteFor(this);
+      if (key !== old) { vignette.setTexture(key); this.textures.remove(old); }
+    });
 
     this.game.events.emit('embers', this.embers);
     this.saver.setupSaving();

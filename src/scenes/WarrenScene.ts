@@ -16,7 +16,7 @@ import { squash } from '../entities/Player';
 import type { Below, Warren, WarrenView } from '../entities/Warren';
 import { Fx } from '../fx/Fx';
 import { Lighting, type Light } from '../fx/Lighting';
-import { makeVignette } from '../fx/textures';
+import { vignetteFor } from '../fx/textures';
 import { Controls } from '../input/Controls';
 import type { ReplicantSave, WarrenItem, WarrenRoom } from '../net/store';
 import { CAVE, GRID_H, GRID_W, allRooms, ladderTile, restOf, type ItemKind } from '../world/warren';
@@ -145,8 +145,7 @@ export class WarrenScene extends Phaser.Scene implements WarrenView {
     cam.startFollow(this.me.sprite, true, 0.1, 0.1, 0, 8);
     cam.centerOn(this.me.x, this.me.y);
     cam.fadeIn(450, 11, 10, 22);
-    if (!this.textures.exists('vignette')) makeVignette(this, this.scale.width, this.scale.height);
-    this.add.image(0, 0, 'vignette').setOrigin(0).setScrollFactor(0).setDepth(DEPTH.vignette);
+    this.add.image(0, 0, vignetteFor(this)).setOrigin(0).setScrollFactor(0).setDepth(DEPTH.vignette);
     this.game.events.emit('location', `THE WARREN - ${this.host.placeLabel}`, [...this.warren.below.keys()].map((n) => ({ name: n.data.name.toUpperCase(), color: PALETTE[n.data.traits.feature ?? PLAYER.feature[1]] })));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { if (this.warren.view === this) this.warren.view = undefined; });
     (window as unknown as { __warren: WarrenScene }).__warren = this;
