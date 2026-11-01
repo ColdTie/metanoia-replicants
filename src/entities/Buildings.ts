@@ -31,7 +31,7 @@ interface Placed {
 }
 /** where things are printed on the Cem bed (px from its middle): two side by side, two more in front */
 const BED_SPOTS = [[-30, -4], [30, -4], [-30, 16], [30, 16]];
-const CARGO_COLORS: Record<string, number> = { salt: 19, iron: 20, quartz: 28, copper: 9, ember: 10, wood: 4, stone: 21, scrap: 22 };
+const CARGO_COLORS: Record<string, number> = { salt: 19, iron: 20, quartz: 28, copper: 9, ember: 10, stone: 21, scrap: 22 };
 
 export class Buildings {
   list: Building[];
@@ -44,8 +44,14 @@ export class Buildings {
 
   constructor(private scene: PlanetScene, data: Building[] | undefined) {
     this.list = data ? structuredClone(data) : [];
-    // a print whose time ran out while nobody was here stands finished
     let done = false;
+    // walls are stone or scrap (an older save's wooden ones are stone), and a building not yet paid never waits for
+    // wood, which nobody can gather: it asks for the rest of its cost, and is free when nothing is left
+    for (const b of this.list) {
+      if (b.material === 'wood') { b.material = 'stone'; done = true; }
+      if (!b.paid && b.cost && 'wood' in b.cost) { delete b.cost.wood; done = true; }
+    }
+    // a print whose time ran out while nobody was here stands finished
     for (const b of this.list) if (this.printed(b) && !b.built && !b.vetoed && this.fraction(b) >= 1) { b.built = true; b.progress = 1; done = true; }
     for (const b of this.list) if (!b.vetoed) this.place(b, false);
     // written with the planet's next flush
@@ -375,7 +381,7 @@ export class Buildings {
   propose(npc: Npc, a: MindAction, kind?: string): Building | null {
     const [minW, minH] = BUILDINGS.minFootprint, [maxW, maxH] = BUILDINGS.maxFootprint;
     const w = Math.max(minW, Math.min(maxW, Math.round(Number(a.width) || 3))), h = Math.max(minH, Math.min(maxH, Math.round(Number(a.height) || 2)));
-    const material = a.material && a.material in BUILDINGS.materials ? a.material : 'wood';
+    const material = a.material && a.material in BUILDINGS.materials ? a.material : 'stone';
     const lotIndex = this.findLot();
     if (lotIndex < 0) return null;
     const spot = buildingSpot(this.scene.map.town.lots[lotIndex]);

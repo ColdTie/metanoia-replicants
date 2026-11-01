@@ -12,10 +12,6 @@
   "autoApproveMinutes": 30,
   "offlineSwingsPerCopyHour": 30,
   "materials": {
-    "wood": {
-      "perTile": 1,
-      "pattern": "planks"
-    },
     "stone": {
       "perTile": 1,
       "pattern": "blocks"
@@ -51,7 +47,7 @@
         "purpose": "A warm room where everyone gathers, sits together and sings.",
         "w": 5,
         "h": 4,
-        "material": "wood",
+        "material": "stone",
         "roof": "peaked",
         "door": "south",
         "primary": "umber",

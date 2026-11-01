@@ -141,7 +141,6 @@ export class Minds {
       kit: kitLists(),
       supplies: { ...this.s.supplies, ember: this.s.embers },
       recipes: SUPPLIES.recipes,
-      roomWood: SUPPLIES.roomWood,
       hasWorkbench: this.s.warren.hasWorkbench,
       entranceDug: this.s.warren.opened,
       shortages: [...this.s.warren.shortages(), ...this.s.buildings.shortages()],
@@ -347,9 +346,9 @@ export class Minds {
     }
   }
 
-  /** A copy clears the nearest standing tree near the base: walks over, swings, the tree falls (and its timber goes to the hatch). */
+  /** A copy clears the nearest standing tree near the base to make room (cut_tree): walks over, swings, the tree falls and stays down. */
   cutTree(npc: Npc) {
-    const tree = this.s.woodTrees(npc)
+    const tree = this.s.cuttableTrees(npc)
       .sort((a, b) => Math.hypot(a.x - npc.x, a.y - npc.y) - Math.hypot(b.x - npc.x, b.y - npc.y))[0];
     if (!tree) return false;
     return npc.startChore({
@@ -361,12 +360,25 @@ export class Minds {
       },
       done: () => {
         if (!tree.alive) return;
-        this.s.hands.fell(tree, npc.x);
-        this.s.time.delayedCall(1500, () => this.s.flyMaterial('wood', { x: tree.x, y: tree.y }, this.s.warren.hatch, SUPPLIES.treeWood));
-        this.mindLog.push({ t: this.mindClock, text: `${npc.data.name} cut down a tree near the base (${SUPPLIES.treeWood} wood)` });
+        this.fell(tree, npc.x);
+        this.mindLog.push({ t: this.mindClock, text: `${npc.data.name} cut down a tree near the base` });
         this.s.game.events.emit('notice', `${npc.data.name.toUpperCase()} CUT DOWN A TREE`);
       },
     });
+  }
+
+  /** The tree comes down away from `fromX` and is gone for good (planet_states.data.felled). */
+  private fell(t: PlanetScene['trees'][number], fromX: number) {
+    const s = this.s;
+    t.alive = false;
+    t.zone.destroy();
+    const dir = fromX < t.x ? 1 : -1;
+    s.tweens.add({ targets: t.sprite, angle: 84 * dir, duration: 700, ease: 'Quad.easeIn', onComplete: () => {
+      s.fx.dust(t.x + dir * 12, t.y, 10);
+      if (Math.hypot(s.player.x - t.x, s.player.y - t.y) < 220) sound.stomp();
+      s.tweens.add({ targets: t.sprite, alpha: 0, duration: 1200, delay: 600, onComplete: () => t.sprite.destroy() });
+    } });
+    s.pending.felled = [...new Set([...(session.planet?.data.felled ?? []), ...(s.pending.felled ?? []), t.index])];
   }
 
   /** A copy takes down one of its own builds (nearest of that kind). */

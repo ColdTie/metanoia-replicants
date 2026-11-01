@@ -25,7 +25,7 @@ The game opens the moment Thales finishes copying himself. He looks at the new V
 The beginning teaches the game as it goes (Steve, 2026-10-27).
 
 1. **Wake.** Thales wakes you and you name yourself.
-2. **The printer.** Thales' 3D printer stands on the homeworld, unfinished. Salt, iron, Ember and wood are found on the homeworld. Copper and quartz are not: the homeworld gave its last to the founding.
+2. **The printer.** Thales' 3D printer stands on the homeworld, unfinished. Salt, iron and Ember are found on the homeworld. Copper and quartz are not: the homeworld gave its last to the founding.
 3. **The first trip.** Thales sends you to Gliese 12 b, the world where Alaina found the Cems. Its salt flats hold the copper and quartz. You gather them there, and the ship carries them home.
 4. **The printer is finished.** The supplies go into the printer and it finishes. The Cems wake, with the ants and the fungus. From then on you can build with them.
 5. **The first designs.** You print a few of the first designs: a lantern, a house, a storehouse.

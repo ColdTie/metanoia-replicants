@@ -111,7 +111,7 @@ try {
   await shot('seedbed-awake');
 
   // 6. its design stone opens the designs; a House is printed on this world
-  await ev(() => { const s = window.__scene; for (const k of ['salt', 'iron', 'quartz', 'copper', 'wood']) s.supplies[k] = 38; s.markSupplies(); s.addEmbers(40); });
+  await ev(() => { const s = window.__scene; for (const k of ['salt', 'iron', 'quartz', 'copper']) s.supplies[k] = 38; s.markSupplies(); s.addEmbers(40); });
   await ev(() => { const s = window.__scene, bw = s.bioworks, p = bw.plinth; bw.readyAt = 0; s.player.setPosition(p.x, p.dir > 0 ? p.y + 6 : p.y - 8); });
   await page.waitForFunction(() => window.__game.scene.isActive('designs') && window.__designs?.rows?.length, null, { timeout: 8000 }).catch(() => fail('standing at the design stone did not open the designs'));
   await page.waitForTimeout(500);

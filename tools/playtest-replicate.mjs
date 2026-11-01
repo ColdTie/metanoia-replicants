@@ -78,7 +78,7 @@ try {
   // 2. the Nous Chip: it waits for the Supercomputer; the Cems print it on their bed; it lies there until taken
   const chip = await ev(() => {
     const s = window.__scene, bl = s.buildings;
-    for (const k of ['salt', 'iron', 'quartz', 'copper', 'wood']) s.supplies[k] = 60;
+    for (const k of ['salt', 'iron', 'quartz', 'copper']) s.supplies[k] = 60;
     s.markSupplies();
     s.addEmbers(60 - s.embers);
     const before = bl.whyNot('nouschip');

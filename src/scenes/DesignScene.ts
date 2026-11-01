@@ -14,7 +14,7 @@ import { turntableSize, type Model } from '../world/voxel';
 import type { PlanetScene } from './PlanetScene';
 import { MIN_W } from '../core/viewport';
 
-const ICON: Record<string, number> = { salt: 8, iron: 13, quartz: 15, copper: 16, wood: 2, ember: 6, hydrogen: 14 };
+const ICON: Record<string, number> = { salt: 8, iron: 13, quartz: 15, copper: 16, ember: 6, hydrogen: 14 };
 const LIST_X = 14, LIST_Y = 38, ROW_H = 24, INFO_X = 200, INFO_W = 270, PREV_Y = 14;
 /** rows shown at once; a longer list scrolls to keep the chosen row in view, with a mark at the end that goes on */
 const LIST_ROWS = 9;

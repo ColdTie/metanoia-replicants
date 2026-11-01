@@ -1,7 +1,7 @@
 // Scripted headless playtest of one building system (src/entities/Buildings.ts cemsTakeOver / tend, src/core/designs.ts
 // blueprintModel): on Earth with a seeded Cem bed and three copies, the copies begin a Meeting Hall of their own; once it
 // is paid, the Cems take it up and print it from a voxel model of its blueprint (the ants carrying its
-// wood, a Cem printer beside it); the copies tend the bed instead of swinging and every stroke brings the print nearer;
+// stone, a Cem printer beside it); the copies tend the bed instead of swinging and every stroke brings the print nearer;
 // it finishes solid and lit and still counts as the copies' (a Meeting Hall still gathers them). Your own design print
 // is tended too. Usage: npm run build && node tools/playtest-cemprint.mjs   (saves screenshots/cemprint-*.png)
 import { spawn } from 'node:child_process';
@@ -26,14 +26,14 @@ try {
   // 1. the copies begin a Meeting Hall of their own (approved: the village's shared work)
   const proposed = await ev(() => {
     const s = window.__scene;
-    const bl = s.buildings.propose(s.npcs[0], { type: 'building', name: 'Long House', purpose: 'Room for all of us.', width: 4, height: 3, material: 'wood', roof: 'peaked', door: 'south', primary: 'sand', secondary: 'plum' }, 'hall');
+    const bl = s.buildings.propose(s.npcs[0], { type: 'building', name: 'Long House', purpose: 'Room for all of us.', width: 4, height: 3, material: 'stone', roof: 'peaked', door: 'south', primary: 'sand', secondary: 'plum' }, 'hall');
     return bl && { id: bl.id, approved: bl.approved, cems: !!bl.cems, cost: bl.cost };
   });
   log('proposed', JSON.stringify(proposed));
   if (!proposed) { fail('no lot for the proposal'); throw new Error('stop'); }
 
   // 2. paid: the Cems take it up (no swings) and print it from its blueprint
-  await ev((id) => { const s = window.__scene; s.supplies.wood = 30; s.markSupplies(); const bl = s.buildings.list.find((x) => x.id === id); bl.progress = Math.round(s.buildings.swingsFor(bl) * 0.25); s.buildings.fund(bl); }, proposed.id);
+  await ev((id) => { const s = window.__scene; s.supplies.stone = 30; s.markSupplies(); const bl = s.buildings.list.find((x) => x.id === id); bl.progress = Math.round(s.buildings.swingsFor(bl) * 0.25); s.buildings.fund(bl); }, proposed.id);
   await page.waitForFunction((id) => !!window.__scene.buildings.list.find((x) => x.id === id)?.cems, proposed.id, { timeout: 6000 }).catch(() => fail('the Cems did not take up the paid blueprint'));
   await page.waitForTimeout(600);
   const taken = await ev((id) => {
@@ -78,7 +78,7 @@ try {
   // 5. your own design is tended too
   const design = await ev(() => {
     const s = window.__scene;
-    for (const k of ['salt', 'iron', 'quartz', 'copper', 'wood']) s.supplies[k] = 38;
+    for (const k of ['salt', 'iron', 'quartz', 'copper']) s.supplies[k] = 38;
     s.addEmbers(40); s.markSupplies();
     const bl = s.buildings.print('house');
     s.npcs.forEach((n) => { n.state = 'idle'; n.chore = null; n.target = null; n.until = 0; n.nextBuild = 0; });

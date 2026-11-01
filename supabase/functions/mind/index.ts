@@ -62,7 +62,6 @@ interface Context {
   wants?: string[];               // its goals, numbered
   supplies?: Record<string, number>;      // the planet's materials (ember = the pool)
   recipes?: Record<string, Record<string, number | boolean>>;
-  roomWood?: Record<string, number>;      // timber a room of each size takes before it is dug
   hasWorkbench?: boolean;
   entranceDug?: boolean;
   shortages?: string[];
@@ -98,7 +97,7 @@ const E = {
   dir: ["north", "south", "east", "west"],
   item: ["rest", "lamp", "bench", "shelf", "workbench", "planter", "mural", "crate"],
   placement: ["", "wall", "corner", "center", "beside"],
-  material: ["wood", "stone", "scrap"],
+  material: ["stone", "scrap"],
   roof: ["flat", "peaked", "dome"],
   door: ["south", "east", "west"],
   pace: ["slow", "steady", "quick"],
@@ -179,7 +178,7 @@ const tools: Anthropic.Beta.BetaTool[] = [
   },
   {
     name: "dig_room",
-    description: "Design the warren: mark out a new room underground for the copies to dig. You choose what it is for, how big, and where it goes (next to which room, on which side). The copies dig it themselves once there is wood to shore it up. Make it a home: the layout is yours and the others'.",
+    description: "Design the warren: mark out a new room underground for the copies to dig. You choose what it is for, how big, and where it goes (next to which room, on which side). The copies dig it themselves. Make it a home: the layout is yours and the others'.",
     input_schema: {
       type: "object", additionalProperties: false, required: ["kind", "name", "size", "beside", "direction", "purpose"],
       properties: {
@@ -498,10 +497,10 @@ async function wakeCopy(sb: SupabaseClient, rep: Replicant, context: Context, li
     if (context.supplies) {
       const sup = Object.entries(context.supplies).map(([m, n]) => `${m} ${Math.floor(n)}`).join(", ");
       lines.push(`Supplies here (shared, kept at the base and on shelves): ${sup}.${context.hasWorkbench ? " There is a workbench." : " No workbench yet (shelves, planters, murals and benches need one)."}`);
-      if (context.recipes) lines.push(`What things take: ${Object.entries(context.recipes).map(([k, r]) => `${k} = ${Object.entries(r).filter(([m]) => m !== "bench").map(([m, n]) => `${n} ${m}`).join(" + ")}${r.bench ? " (workbench)" : ""}`).join("; ")}. A room takes wood to shore up before it is dug: ${Object.entries(context.roomWood ?? {}).map(([s, n]) => `${s} ${n}`).join(", ")}. Digging yields stone and soil; felled trees give wood; iron ore gives scrap.`);
+      if (context.recipes) lines.push(`What things take: ${Object.entries(context.recipes).map(([k, r]) => `${k} = ${Object.entries(r).filter(([m]) => m !== "bench").map(([m, n]) => `${n} ${m}`).join(" + ") || "nothing"}${r.bench ? " (workbench)" : ""}`).join("; ")}. Digging yields stone and soil; iron ore gives scrap.`);
       if (context.shortages?.length) lines.push(`Waiting on: ${context.shortages.join("; ")}.`);
     }
-    if (context.buildings) lines.push(context.buildings.length ? `Buildings above ground:\n${context.buildings.join("\n")}\nA copy that wants a building designs it (design_building); the others join the raising. If one waits for materials, ask the others with say_to to cut, dig or scavenge, or the original.` : `No building above ground yet. design_building proposes one (${context.buildingKit?.minFootprint.join("x")} to ${context.buildingKit?.maxFootprint.join("x")} tiles; ${Object.entries(context.buildingKit?.perTile ?? {}).map(([m, n]) => `${m} ${n} per tile`).join(", ")}). The original must approve it.`);
+    if (context.buildings) lines.push(context.buildings.length ? `Buildings above ground:\n${context.buildings.join("\n")}\nA copy that wants a building designs it (design_building); the others join the raising. If one waits for materials, ask the others with say_to to dig or scavenge, or the original.` : `No building above ground yet. design_building proposes one (${context.buildingKit?.minFootprint.join("x")} to ${context.buildingKit?.maxFootprint.join("x")} tiles; ${Object.entries(context.buildingKit?.perTile ?? {}).map(([m, n]) => `${m} ${n} per tile`).join(", ")}). The original must approve it.`);
     const inv = Object.entries(context.inventory ?? {}).filter(([, n]) => n > 0);
     if (inv.length) lines.push(`You hold gifts from the original: ${inv.map(([m, n]) => `${n} ${m}`).join(", ")}.`);
     if (context.events.length) lines.push(`Since you last woke: ${context.events.join("; ")}.`);
@@ -634,11 +633,11 @@ async function wakeCopy(sb: SupabaseClient, rep: Replicant, context: Context, li
                 else {
                   actions.push({ ...ask, name: room.name, applied: true });
                   liveRefresh(live, rep.id, context);
-                  out = `You mark out ${room.name} ${room.dir} of ${beside}. The copies dig it once there is wood to shore it up (${ROOM_WOOD[room.size]} wood); you will find it dug when you next wake.`;
+                  out = `You mark out ${room.name} ${room.dir} of ${beside}. The copies will dig it; you will find it dug when you next wake.`;
                 }
               } else {
                 actions.push(ask);
-                out = `You mark out ${input.name} ${input.direction} of ${beside}. It will be dug once there is wood to shore it up.`;
+                out = `You mark out ${input.name} ${input.direction} of ${beside}. The copies will dig it.`;
               }
             } else if (u.name === "furnish") {
               const rooms = (context.warrenRooms ?? ["Entrance"]).map((r) => r.toLowerCase());
@@ -681,7 +680,7 @@ async function wakeCopy(sb: SupabaseClient, rep: Replicant, context: Context, li
               if (!k) out = "No building kit here.";
               else if (!(w >= k.minFootprint[0] && w <= k.maxFootprint[0] && h >= k.minFootprint[1] && h <= k.maxFootprint[1])) out = `A footprint of ${k.minFootprint.join("x")} to ${k.maxFootprint.join("x")} tiles.`;
               else {
-                const material = oneOf(input.material, E.material, "wood");
+                const material = oneOf(input.material, E.material, "stone");
                 const cost = Math.ceil(w * h * (k.perTile[material] ?? 1));
                 actions.push({ type: "building", name: String(input.name ?? "Shelter"), purpose: String(input.purpose ?? "").slice(0, 140), width: w, height: h, material, roof: oneOf(input.roof, E.roof, "peaked"), door: oneOf(input.door, E.door, "south"), primary: String(input.primary ?? "silver"), secondary: String(input.secondary ?? "slate") });
                 out = `${input.name} is marked out near the base: ${w}x${h}, ${cost} ${material}. It waits for the original's word.`;
@@ -906,7 +905,6 @@ type Recipe = Record<string, number | boolean>;
 
 const AWAY_CAP_HOURS = 12;          // hours of digging that bank up on a planet between passes
 const RECIPES = KIT.recipes as Record<string, Recipe>;
-const ROOM_WOOD = KIT.roomWood as Record<string, number>;
 const COLOR_INDEX = KIT.kit.colorIndex as Record<string, number>;
 
 /**
@@ -927,6 +925,8 @@ export interface AwayPlanet {
   copies: Replicant[];
   names: Map<string, string>;
   dirty: boolean;
+  /** the saved store held wood, which is not a material: it is written back without it even when nothing else changed */
+  cleaned: boolean;
 }
 
 async function loadPlanet(sb: SupabaseClient, copies: Replicant[], names: Map<string, string>): Promise<AwayPlanet | null> {
@@ -939,10 +939,19 @@ async function loadPlanet(sb: SupabaseClient, copies: Replicant[], names: Map<st
   const rooms = w.rooms ?? [];
   // warrens from before the entrance was its own dig (session 9): a dug room means the hole is open
   const warren: WarrenData = { ...w, rooms, items: w.items ?? [], entrance: w.entrance ?? { dug: rooms.some((r) => r.dug), swings: 0 } };
+  // an older save may still hold wood: the store drops it, wooden walls read as stone and a building not yet paid
+  // asks only for the rest of its cost (the game does the same when it loads the planet; buildings are only read here)
+  const supplies = { ...((d.supplies ?? {}) as Record<string, number>) };
+  const cleaned = "wood" in supplies;
+  delete supplies.wood;
+  for (const b of (d.buildings ?? []) as Bld[]) {
+    if (b.material === "wood") b.material = "stone";
+    if (!b.paid && b.cost) delete b.cost.wood;
+  }
   return {
     galaxy: first.galaxy_id, star: first.star_id, index: first.planet_index,
-    embers: p.embers, emberDelta: 0, data: d, warren, supplies: { ...((d.supplies ?? {}) as Record<string, number>) },
-    queue: (d.awayQueue ?? []) as AwayItem[], queueChanged: false, items: [], events: [], copies, names, dirty: false,
+    embers: p.embers, emberDelta: 0, data: d, warren, supplies,
+    queue: (d.awayQueue ?? []) as AwayItem[], queueChanged: false, items: [], events: [], copies, names, dirty: false, cleaned,
   };
 }
 
@@ -989,10 +998,6 @@ function pay(p: AwayPlanet, recipe: Recipe) {
 function shortagesOf(p: AwayPlanet): string[] {
   const out: string[] = [];
   if (!p.warren.entrance?.dug) out.push("the way down is not dug yet");
-  for (const r of p.warren.rooms.filter((r) => !r.dug)) {
-    const need = ROOM_WOOD[r.size] - Math.floor(p.supplies.wood ?? 0);
-    if (need > 0) out.push(`${r.name} waits for ${need} more wood to shore it up (cut a tree)`);
-  }
   return out;
 }
 
@@ -1043,8 +1048,8 @@ function liveRefresh(p: AwayPlanet, me: string, ctx: Context) {
 /**
  * Time passing on a planet nobody plays, run once per scheduled call: rooms planned in earlier wakes (queued before
  * the warren moved here) are placed; the way down is dug, then planned rooms out from the ladder, one per hour
- * banked, wood permitting; a copy without a bed makes itself one in a dug room. What happens is told to the copies
- * that wake, and queued so the game can say it on landing.
+ * banked; a copy without a bed makes itself one in a dug room. What happens is told to the copies that wake, and
+ * queued so the game can say it on landing.
  */
 export function awayPass(p: AwayPlanet, now: number) {
   const last = typeof p.data.awayTick === "number" ? p.data.awayTick : now - 3_600_000;
@@ -1082,10 +1087,8 @@ export function awayPass(p: AwayPlanet, now: number) {
   const allowed = Math.min(KIT.maxRoomsDugAway, Math.floor(hours));
   for (const r of p.warren.rooms.filter((r) => !r.dug).sort((a, b) => a.at - b.at)) {
     if (rooms >= allowed) break;
-    const wood = Math.floor(p.supplies.wood ?? 0);
-    if (!e.dug || !dug(r.link) || wood < ROOM_WOOD[r.size]) continue;
+    if (!e.dug || !dug(r.link)) continue;
     r.dug = true;
-    p.supplies.wood = Math.max(0, Math.round(((p.supplies.wood ?? 0) - ROOM_WOOD[r.size]) * 100) / 100);
     addSupply(p, "stone", r.w * r.h * KIT.digYield.stonePerTile);
     addSupply(p, "soil", r.w * r.h * KIT.digYield.soilPerTile);
     p.dirty = true;
@@ -1112,6 +1115,7 @@ export function awayPass(p: AwayPlanet, now: number) {
 async function savePlanet(sb: SupabaseClient, p: AwayPlanet, now: number) {
   const patch: Record<string, unknown> = {};
   if (p.dirty) { patch.warren = p.warren; patch.supplies = p.supplies; patch.awayTick = now; }
+  else if (p.cleaned) patch.supplies = p.supplies;
   if (p.queueChanged) patch.awayQueue = [...p.queue, ...p.items];
   if (Object.keys(patch).length || p.emberDelta) {
     const { error } = await sb.rpc("apply_planet_delta", { p_galaxy: p.galaxy, p_star: p.star, p_index: p.index, p_embers: p.emberDelta, p_data: patch });
@@ -1262,7 +1266,7 @@ function awayContext(rep: Replicant, original: string, p: AwayPlanet, delays: Re
     reflect: Math.random() < 0.25,
     blank: !!t.blank,
     kit: KIT.kit as Context["kit"],
-    recipes: KIT.recipes as Context["recipes"], roomWood: ROOM_WOOD,
+    recipes: KIT.recipes as Context["recipes"],
     needs: low,
     mood: mood > 0.6 ? "content" : mood > 0.35 ? "low" : "bleak",
     buildings,

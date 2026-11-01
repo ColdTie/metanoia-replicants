@@ -23,14 +23,14 @@ export const DESIGNS = CAT.designs;
 
 /** What a copy's blueprint asks for, as the Cems read it (src/net/store.ts Building). */
 export interface BlueprintSpec { id: string; name: string; purpose?: string; w: number; h: number; material: string; roof: string; door: string; kind?: string }
-const WALLS: Record<string, string> = { wood: 'lignin', stone: 'salt', scrap: 'steel' };
+const WALLS: Record<string, string> = { stone: 'salt', scrap: 'steel' };
 const blueprints = new Map<string, Model>();
 
 /**
  * A copy's blueprint printed by the Cems (one building system: where a bed is awake, the copies' buildings are printed
  * too): its footprint in voxels at the world's scale (4 a tile across, about 4 a tile deep), walls of the material it
- * chose as the Cems lay it (wood as lignin, stone as pale salt, scrap as steel), its roof, its door on its side, warm
- * windows across its front; a Lookout gets its tower. Built once per building.
+ * chose as the Cems lay it (stone as pale salt, scrap as steel, anything else their own lignin), its roof, its door on
+ * its side, warm windows across its front; a Lookout gets its tower. Built once per building.
  */
 export function blueprintModel(b: BlueprintSpec): Model {
   const key = `${b.id}:${b.w}x${b.h}:${b.material}:${b.roof}:${b.door}`;

@@ -1,9 +1,13 @@
 // Scripted headless playtest of session 9 step 4: a copy proposes a building, it waits for the original's word,
-// the original approves it in the journal, the copies pay its wood and raise it together, it lights up; the
+// the original approves it in the journal, the copies pay its stone and raise it together, it lights up; the
 // original talks to a copy and gives it Ember. Usage: npm run build && node tools/playtest-buildings.mjs
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
 import { chromium } from 'playwright';
 const port = 4185;
+const BUILDINGS = JSON.parse(fs.readFileSync('src/data/buildings.json', 'utf8'));
+// the Watchtower below: 3x2 tiles of stone
+const COST = { stone: Math.ceil(3 * 2 * BUILDINGS.materials.stone.perTile) };
 const server = spawn('npx', ['vite', 'preview', '--port', String(port), '--strictPort'], { stdio: 'ignore', detached: true });
 for (;;) { try { if ((await fetch(`http://localhost:${port}/Replicated/`)).ok) break; } catch {} await new Promise((r) => setTimeout(r, 200)); }
 const errors = [];
@@ -23,14 +27,18 @@ try {
   // 1. a proposal: placed on clear ground, faint, waiting
   const proposed = await ev(() => {
     const s = window.__scene;
-    const bld = s.buildings.propose(s.npcs[0], { type: 'building', name: 'Watchtower', purpose: 'To see the far side.', width: 3, height: 2, material: 'wood', roof: 'peaked', door: 'south', primary: 'sand', secondary: 'plum' });
-    return bld && { id: bld.id, name: bld.name, at: [bld.x, bld.y], approved: bld.approved, cost: bld.cost, words: s.buildings.describe((id) => s.npcs.find((n) => n.data.id === id)?.data.name ?? '?') };
+    const bld = s.buildings.propose(s.npcs[0], { type: 'building', name: 'Watchtower', purpose: 'To see the far side.', width: 3, height: 2, material: 'stone', roof: 'peaked', door: 'south', primary: 'sand', secondary: 'plum' });
+    return bld && { id: bld.id, name: bld.name, at: [bld.x, bld.y], approved: bld.approved, material: bld.material, cost: bld.cost, words: s.buildings.describe((id) => s.npcs.find((n) => n.data.id === id)?.data.name ?? '?') };
   });
   log('proposed', JSON.stringify(proposed));
   if (!proposed) fail('no spot for the building');
   if (proposed?.approved) fail('proposal was approved before the original spoke');
+  if (proposed && (proposed.material !== 'stone' || JSON.stringify(proposed.cost) !== JSON.stringify(COST))) fail(`the Watchtower does not cost its stone (${JSON.stringify(proposed.cost)})`);
   // nobody works on it while it waits
-  await ev(() => { const s = window.__scene; s.supplies.wood = 10; s.npcs.forEach((n) => { n.state = 'idle'; n.until = 0; n.nextBuild = 0; }); });
+  await ev(() => { const s = window.__scene; s.supplies.stone = 10; s.npcs.forEach((n) => { n.state = 'idle'; n.until = 0; n.nextBuild = 0; }); });
+  // every payment out of the store is noted: the building must be paid from it (copies dig and make beds meanwhile, so
+  // the store's count alone shows nothing)
+  await ev(() => { const s = window.__scene, pay = s.warren.pay.bind(s.warren); window.__paid = []; s.warren.pay = (c) => { window.__paid.push(JSON.stringify(c)); return pay(c); }; });
   await page.waitForTimeout(2500);
   log('waiting progress', await ev(() => window.__scene.buildings.list[0].progress));
   if ((await ev(() => window.__scene.buildings.list[0].progress)) > 0) fail('work started before approval');
@@ -44,8 +52,8 @@ try {
   await page.waitForTimeout(600);
   log('approved', await ev(() => JSON.stringify({ approved: window.__scene.buildings.list[0].approved, journalOpen: !!document.querySelector('.jn') })));
   await ev(() => { document.querySelector('.jn')?.remove(); });
-  // a copy finishes the chore it is on before it comes (felling a tree takes a while): 7 to 20 s here, more on a slow
-  // runner, so the wait is as long as the one for the finished building below; the time it took is logged
+  // a copy finishes the chore it is on before it comes (digging the way down takes a while): 7 to 20 s here, more on a
+  // slow runner, so the wait is as long as the one for the finished building below; the time it took is logged
   const tApproved = Date.now();
   await page.waitForFunction(() => window.__scene.buildings.list[0].progress > 0, null, { timeout: 60000 }).catch(() => fail('nobody joined the raising'));
   log('joined after', `${((Date.now() - tApproved) / 1000).toFixed(1)}s`, await ev(() => JSON.stringify({ width: window.__game.scale.width, fps: Math.round(window.__game.loop.actualFps), copies: window.__scene.npcs.map((n) => n.state) })));
@@ -65,8 +73,11 @@ try {
   log('printer', JSON.stringify(printer));
   if (!printer) fail('no printer beside the approved building');
   else if (!printer.pulses) fail('the printer did not print while the copies worked');
-  log('raising', await ev(() => JSON.stringify({ progress: window.__scene.buildings.list[0].progress, paid: window.__scene.buildings.list[0].paid, wood: window.__scene.supplies.wood, helpers: window.__scene.buildings.list[0].helpers.length })));
-  if ((await ev(() => window.__scene.supplies.wood)) >= 10) fail('the building took no wood');
+  log('raising', await ev(() => JSON.stringify({ progress: window.__scene.buildings.list[0].progress, paid: window.__scene.buildings.list[0].paid, cost: window.__scene.buildings.list[0].cost, stone: window.__scene.supplies.stone, helpers: window.__scene.buildings.list[0].helpers.length })));
+  // paid out of the store once the first copy joined, exactly its cost
+  const paid = await ev(() => { const bl = window.__scene.buildings.list[0]; return { paid: bl.paid, cost: bl.cost, payments: window.__paid }; });
+  if (!paid.paid || JSON.stringify(paid.cost) !== JSON.stringify(COST)) fail(`the building did not take its stone (${JSON.stringify(paid)})`);
+  if (!paid.payments.includes(JSON.stringify(COST))) fail(`the store was never charged the building's stone (${JSON.stringify(paid.payments)})`);
   await page.waitForFunction(() => window.__scene.buildings.list[0].built, null, { timeout: 60000 }).catch(() => fail('the building never got finished'));
   await page.waitForTimeout(900);
   const built = await ev(() => { const s = window.__scene; const bl = s.buildings.list[0]; s.player.setPosition(bl.x - 30, bl.y + 10); s.cameras.main.centerOn(bl.x, bl.y - 10); return { built: bl.built, helpers: bl.helpers.length, progress: bl.progress, total: s.buildings.swingsFor(bl) }; });

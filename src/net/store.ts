@@ -110,7 +110,7 @@ export interface PlanetData {
   felled?: number[];
   /** The underground base the copies design and dig (src/world/warren.ts) */
   warren?: WarrenData;
-  /** The planet's materials (src/data/supplies.json): stone, soil, wood, scrap; Ember is `embers` */
+  /** The planet's materials (src/data/supplies.json): stone, soil, scrap and the rest; Ember is `embers` */
   supplies?: Record<string, number>;
   /** Surface buildings the copies designed (src/entities/Buildings.ts) */
   buildings?: Building[];
@@ -267,10 +267,9 @@ export interface MindContext {
   /** the planet's materials (ember = the pool) and what things cost */
   supplies: Record<string, number>;
   recipes: Record<string, Record<string, number | boolean>>;
-  roomWood: Record<string, number>;
   hasWorkbench: boolean;
   entranceDug: boolean;
-  /** what waits on what ("Hearth waits for 2 more wood") */
+  /** what waits on what ("the way down is not dug yet") */
   shortages: string[];
   /** how it feels: low needs in words, and the mood they add up to */
   needs: string[];
@@ -479,8 +478,7 @@ export class LocalStore implements GameStore {
       me.traits.voice = voice;
       actions.push({ type: 'melody', ...voice, notes: pick(tunes) });
     }
-    if (ctx.treesNear > 0 && Math.random() < 0.25) actions.push({ type: 'cut' });
-    else if (Object.keys(ctx.mine).length && Math.random() < 0.2) actions.push({ type: 'demolish', kind: 'any' });
+    if (Object.keys(ctx.mine).length && Math.random() < 0.2) actions.push({ type: 'demolish', kind: 'any' });
     // the warren: dig a room now and then, and make sure of a resting station once something is dug
     const rooms = ctx.warrenRooms;
     if (!ctx.warrenFull && Math.random() < (rooms.length < 3 ? 0.6 : 0.2)) {
@@ -489,7 +487,7 @@ export class LocalStore implements GameStore {
       const kind = pick(kinds);
       actions.push({ type: 'dig', kind, name: pick(names[kind]), size: pick(['small', 'medium', 'medium', 'large']), beside: pick(rooms), direction: pick(['north', 'south', 'east', 'west']), purpose: 'A place of our own under the ground.' });
     } else if (!ctx.buildings.length && Math.random() < 0.5) {
-      actions.push({ type: 'building', name: pick(['Watchtower', 'Lookout', 'Hall', 'Store']), purpose: 'A place above ground for all of us.', width: 3, height: 2, material: pick(['wood', 'stone']), roof: pick(['peaked', 'flat', 'dome']), door: 'south', primary: pick(['sand', 'silver', 'rust']), secondary: pick(['slate', 'plum', 'pine']) });
+      actions.push({ type: 'building', name: pick(['Watchtower', 'Lookout', 'Hall', 'Store']), purpose: 'A place above ground for all of us.', width: 3, height: 2, material: pick(['stone', 'stone', 'stone', 'scrap']), roof: pick(['peaked', 'flat', 'dome']), door: 'south', primary: pick(['sand', 'silver', 'rust']), secondary: pick(['slate', 'plum', 'pine']) });
     } else if (rooms.length > 1 && Math.random() < 0.55) {
       const item = !ctx.hasRest ? 'rest' : pick(['lamp', 'bench', 'shelf', 'workbench', 'planter', 'mural', 'crate', 'rest']);
       actions.push({ type: 'furnish', room: pick(rooms.slice(1)), item, forId: item === 'rest' ? me.id : undefined, placement: pick(['', 'wall', 'corner', 'center']), color: pick(['', 'cyan', 'gold', 'moss', 'plum']) });

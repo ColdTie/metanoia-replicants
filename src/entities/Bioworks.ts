@@ -32,7 +32,8 @@ type Pt = { x: number; y: number };
 const DEPTH_ANTS = 6, DEPTH_GLOW = 6100;
 const BED_KEY = 'cembed';
 
-/** A line of ants between two points: out carrying, back empty, again (cargo: palette colors, one picked per trip). */
+/** A line of ants between two points: out carrying, back empty, again (cargo: palette colors, one picked per trip;
+ * none: they walk it empty-handed, as for a print that cost nothing). */
 interface Trail { id: string; pts: Pt[]; lens: number[]; len: number; cargo: number[]; ants: Ant[]; ending: boolean }
 interface Ant { s: number; dir: 1 | -1; v: number; phase: number; color: number | null }
 
@@ -446,7 +447,7 @@ export class Bioworks {
     // spread along the line (out and back); a new line's ants are out on its first stretch, the rest still coming out
     const ants: Ant[] = Array.from({ length: n }, (_, i) => {
       const k = i / n, out = k < spread;
-      return { s: out ? (k / Math.max(spread, 0.01)) * c.len * spread : -(k - spread) * c.len * 1.2, dir: i % 3 === 2 && out ? -1 : 1, v: v0 + Math.random() * (v1 - v0), phase: Math.random() * 6, color: i % 3 === 2 && out ? null : cargo[i % cargo.length] };
+      return { s: out ? (k / Math.max(spread, 0.01)) * c.len * spread : -(k - spread) * c.len * 1.2, dir: i % 3 === 2 && out ? -1 : 1, v: v0 + Math.random() * (v1 - v0), phase: Math.random() * 6, color: (i % 3 === 2 && out) || !cargo.length ? null : cargo[i % cargo.length] };
     });
     this.trails.push({ id, ...c, cargo, ants, ending: false });
   }
@@ -680,7 +681,7 @@ export class Bioworks {
         if (a.s >= t.len) { a.s = t.len; a.dir = -1; a.color = null; }
         else if (a.s <= 0 && a.dir < 0) {
           if (t.ending) { a.v = 0; a.s = -1; continue; }
-          a.dir = 1; a.color = t.cargo[Math.floor(Math.random() * t.cargo.length)];
+          a.dir = 1; a.color = t.cargo.length ? t.cargo[Math.floor(Math.random() * t.cargo.length)] : null;
         }
         if (a.s < 0) continue;
         const q = this.antAt(t, a);
