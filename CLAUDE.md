@@ -547,7 +547,18 @@ Sessions 1 to 22 (the vertical slice through the Cems' swift strain) are in `doc
   "woody" timbre words in `Sound.ts`.
 - **The bible:** `story/STORY.md` The beginning, step 2, in Steve's words: "Salt, iron and Ember are found on the
   homeworld."
-- Verified: (filled in by the lead)
+- **Scrap walls can be paid.** With wood gone a copy's building is stone or scrap, and scrap only comes from scavenging
+  iron ore, which stopped at 2 in the store: a 3x2 scrap building (4) could wait for ever on a world with one copy.
+  Copies now scavenge while an approved building waits on scrap, up to its cost (`Warren.pickTask`); the canned
+  `?local` mind proposes stone three times in four.
+- How it was done: a mapping pass (five readers and a completeness critic, the live data read-only), five agents on
+  disjoint files from one decision list, the kit regenerated, then an independent review (four reviewers, two skeptics
+  on each finding: two confirmed, both fixed above and in `playtest-buildings`, which now checks the store was charged
+  the building's cost; five refuted).
+- Verified: build, typecheck (also with unused locals and parameters), `tools/check-mind-tools.mjs`, the kit has no
+  wood, a grep finds wood only in the old-save cleanup and its test, the full `npm test` (23 of 23), a scrap building
+  paid by the copies' scavenging from an empty store. Screenshots `hands-carry.png`, `hands-need.png`,
+  `tutorial-printer.png`, `together-hall.png`, `building-*.png`, `cemprint-*.png`.
 
 ### Session 26 (2026-11-01): the game fills a phone held sideways (Steve, on an iPhone in Chrome: "the screen seems to be too small")
 - **What it was:** the game drew a fixed 480x270 (16:9) and was fitted into what the phone shows. In Chrome on the iPhone

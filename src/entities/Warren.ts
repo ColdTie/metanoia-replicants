@@ -294,8 +294,10 @@ export class Warren {
     // a full store of stone: make a room finer
     const better = Math.random() < 0.5 ? this.roomToImprove() : null;
     if (better) { this.digging.set(better.id, npc); return { task: 'improve', room: better }; }
-    // scrap for lamps and workbenches: pick loose metal off an iron ore now and then
-    if ((this.supplies.scrap ?? 0) < 2 && Math.random() < 0.3) {
+    // scrap for lamps and workbenches, and for an approved building that waits on it (a scrap wall can cost more than
+    // the two kept for furnishing): pick loose metal off an iron ore now and then
+    const wantScrap = Math.min(this.cap, Math.max(2, ...this.scene.buildings.waitingFor('scrap').map((b) => b.cost.scrap ?? 0)));
+    if ((this.supplies.scrap ?? 0) < wantScrap && Math.random() < 0.3) {
       const ore = this.scene.nodes.find((n) => n.kind === 'iron' && n.alive && Date.now() - (this.data.scavenged?.[n.index] ?? 0) > SUPPLIES.scrapCooldownMinutes * 60_000);
       if (ore) return { task: 'scavenge', oreIndex: ore.index };
     }

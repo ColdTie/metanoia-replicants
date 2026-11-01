@@ -36,6 +36,9 @@ try {
   if (proposed && (proposed.material !== 'stone' || JSON.stringify(proposed.cost) !== JSON.stringify(COST))) fail(`the Watchtower does not cost its stone (${JSON.stringify(proposed.cost)})`);
   // nobody works on it while it waits
   await ev(() => { const s = window.__scene; s.supplies.stone = 10; s.npcs.forEach((n) => { n.state = 'idle'; n.until = 0; n.nextBuild = 0; }); });
+  // every payment out of the store is noted: the building must be paid from it (copies dig and make beds meanwhile, so
+  // the store's count alone shows nothing)
+  await ev(() => { const s = window.__scene, pay = s.warren.pay.bind(s.warren); window.__paid = []; s.warren.pay = (c) => { window.__paid.push(JSON.stringify(c)); return pay(c); }; });
   await page.waitForTimeout(2500);
   log('waiting progress', await ev(() => window.__scene.buildings.list[0].progress));
   if ((await ev(() => window.__scene.buildings.list[0].progress)) > 0) fail('work started before approval');
@@ -71,9 +74,10 @@ try {
   if (!printer) fail('no printer beside the approved building');
   else if (!printer.pulses) fail('the printer did not print while the copies worked');
   log('raising', await ev(() => JSON.stringify({ progress: window.__scene.buildings.list[0].progress, paid: window.__scene.buildings.list[0].paid, cost: window.__scene.buildings.list[0].cost, stone: window.__scene.supplies.stone, helpers: window.__scene.buildings.list[0].helpers.length })));
-  // paid once the first copy joined; the store itself is no measure (digging the way down adds stone meanwhile)
-  const paid = await ev(() => { const bl = window.__scene.buildings.list[0]; return { paid: bl.paid, cost: bl.cost }; });
+  // paid out of the store once the first copy joined, exactly its cost
+  const paid = await ev(() => { const bl = window.__scene.buildings.list[0]; return { paid: bl.paid, cost: bl.cost, payments: window.__paid }; });
   if (!paid.paid || JSON.stringify(paid.cost) !== JSON.stringify(COST)) fail(`the building did not take its stone (${JSON.stringify(paid)})`);
+  if (!paid.payments.includes(JSON.stringify(COST))) fail(`the store was never charged the building's stone (${JSON.stringify(paid.payments)})`);
   await page.waitForFunction(() => window.__scene.buildings.list[0].built, null, { timeout: 60000 }).catch(() => fail('the building never got finished'));
   await page.waitForTimeout(900);
   const built = await ev(() => { const s = window.__scene; const bl = s.buildings.list[0]; s.player.setPosition(bl.x - 30, bl.y + 10); s.cameras.main.centerOn(bl.x, bl.y - 10); return { built: bl.built, helpers: bl.helpers.length, progress: bl.progress, total: s.buildings.swingsFor(bl) }; });

@@ -487,7 +487,7 @@ export class LocalStore implements GameStore {
       const kind = pick(kinds);
       actions.push({ type: 'dig', kind, name: pick(names[kind]), size: pick(['small', 'medium', 'medium', 'large']), beside: pick(rooms), direction: pick(['north', 'south', 'east', 'west']), purpose: 'A place of our own under the ground.' });
     } else if (!ctx.buildings.length && Math.random() < 0.5) {
-      actions.push({ type: 'building', name: pick(['Watchtower', 'Lookout', 'Hall', 'Store']), purpose: 'A place above ground for all of us.', width: 3, height: 2, material: pick(['stone', 'scrap']), roof: pick(['peaked', 'flat', 'dome']), door: 'south', primary: pick(['sand', 'silver', 'rust']), secondary: pick(['slate', 'plum', 'pine']) });
+      actions.push({ type: 'building', name: pick(['Watchtower', 'Lookout', 'Hall', 'Store']), purpose: 'A place above ground for all of us.', width: 3, height: 2, material: pick(['stone', 'stone', 'stone', 'scrap']), roof: pick(['peaked', 'flat', 'dome']), door: 'south', primary: pick(['sand', 'silver', 'rust']), secondary: pick(['slate', 'plum', 'pine']) });
     } else if (rooms.length > 1 && Math.random() < 0.55) {
       const item = !ctx.hasRest ? 'rest' : pick(['lamp', 'bench', 'shelf', 'workbench', 'planter', 'mural', 'crate', 'rest']);
       actions.push({ type: 'furnish', room: pick(rooms.slice(1)), item, forId: item === 'rest' ? me.id : undefined, placement: pick(['', 'wall', 'corner', 'center']), color: pick(['', 'cyan', 'gold', 'moss', 'plum']) });
