@@ -223,9 +223,11 @@ src/core/viewport.ts     keeps the game inside what a phone shows: the game's bo
                          is GAME_H (270) tall and as wide as the box's shape asks (MIN_W 480 .. MAX_W 720): a wide screen
                          shows more world, not bars. A new width is taken on once only the planet and its UI run (the
                          other scenes lay out once); onScreenSize() re-lays what hangs off the right edge (the touch
-                         buttons, the speaker, the talk box, kept 480 wide and centered); the lighting, sky, fog and
-                         weather layers are MAX_W wide; the vignette is one texture per size (vignetteFor); the design
-                         menu and the husk vault center their 480 layout with the camera
+                         buttons, the speaker, the talk box, kept 480 wide and centered); the darkness layer is the
+                         game's size and made again when it changes (Phaser 3.90's rt.resize() does not resize its
+                         framebuffer); the sky, fog and weather layers are MAX_W wide (past the edge is not drawn); the
+                         vignette is one texture per size (vignetteFor); the design menu and the husk vault center
+                         their 480 layout with the camera
 supabase/manual/         SQL run by hand, only when Steve asks: 2026-10-27_tutorial_fresh_start.sql (backs up and erases his
                          galaxy only; run 2026-10-28)
 src/data/*.json          palette, planets, player, enemies, items, structures, backend, village, warren (all tunables)
@@ -513,8 +515,8 @@ Sessions 1 to 22 (the vertical slice through the Cems' swift strain) are in `doc
   follows a later change (the phone turned, a window resized) as soon as only the planet is showing; while the home
   screen, travel, the star map, the designs, the vault or the warren is open the canvas keeps its bars until it closes.
   On the planet the touch buttons, the speaker and the talk box follow the right edge (the talk box stays 480 wide,
-  centered, so its lines stay short); the darkness, sky, stars, fog, sunbeams and rain layers cover the widest game;
-  the vignette is made for each size. The design menu and the husk vault keep their 480 layout, centered.
+  centered, so its lines stay short); the sky, stars, fog, sunbeams and rain layers cover the widest game; the
+  darkness layer and the vignette are made for each size. The design menu and the husk vault keep their 480 layout, centered.
 - **An independent review** (four reviewers, two skeptics on each finding; nine findings, four refuted) confirmed
   and this fixed: a vignette was made for every width a dragged window passed through and none was freed (121
   textures, about 78 MB; now the old one is removed); a title card or notice showing while the width changed stayed
@@ -528,6 +530,11 @@ Sessions 1 to 22 (the vertical slice through the Cems' swift strain) are in `doc
   review fixes (one vignette after a window drag, cards re-centred, dust density equal at 480 and 720, the margin); the
   full `npm test` (22 of 23 in a run beside the review's browsers, `playtest-talk` the known timing flake, passing
   alone; then again after the fixes). Screenshot `wide-phone.png`.
+- **CI then failed `playtest-buildings`** (the copies joined the raising a few seconds after its 25 s wait). The cause
+  was this change: the darkness layer was made MAX_W wide on every screen, and it is filled every frame, so frames at
+  480 were about 9% slower under software GL (24 vs 26 fps, interleaved runs against a build of main), and the game's
+  clock runs on frame time. It is now the game's size and made again when the width changes (Phaser's rt.resize()
+  moved the lights off their sources: its GL target never resizes). Measured again: 23.5 vs 22.9 fps against main.
 
 ### Session 25 (2026-10-29): the next steps; the minds back on (Steve: "Go ahead and view this game. Then look at the plan doc and the bible. Whats next? Ask me any questions and we will make a plan for the next steps", and his answers: invite link, turn the minds back on, joining and the memory next, merge #72 and update the bible)
 - Looked over the game (fresh screenshots of the homeworld, the bed, the Replicator printing, Gliese 12 b) and Steve's

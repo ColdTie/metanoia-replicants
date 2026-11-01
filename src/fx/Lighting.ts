@@ -1,7 +1,7 @@
 // Darkness layer: a screen-sized render texture filled with the ambient color, lights stamped in
 // additively, then multiplied over the scene. Glow sprites add warm bloom on top.
 import Phaser from 'phaser';
-import { MAX_W } from '../core/viewport';
+import { MAX_W, onScreenSize } from '../core/viewport';
 
 export interface Light {
   x: number;
@@ -23,14 +23,24 @@ export class Lighting {
   private lights = new Set<Light>();
   private t = 0;
 
-  constructor(private scene: Phaser.Scene, private ambient: number, depth: number) {
-    const { height } = scene.scale;
-    // Oversized by a margin so camera shake and sub-pixel follow never expose an unlit edge, and as wide as the game
-    // can get (src/core/viewport.ts) so it still covers the screen after the phone is turned
-    this.rt = scene.add.renderTexture(-M, -M, MAX_W + M * 2, height + M * 2)
+  constructor(private scene: Phaser.Scene, private ambient: number, private depth: number) {
+    // As big as the game is now (it is filled every frame, so a bigger one costs on every screen), made again when the
+    // game's width changes (src/core/viewport.ts). Not rt.resize(): Phaser 3.90 makes a RenderTexture's GL target with
+    // autoResize off, so resize() changes its frame but not its framebuffer and the lights land in the wrong place.
+    this.rt = this.make(scene.scale.width, scene.scale.height);
+    onScreenSize(scene, (w, h) => {
+      if (this.rt.width === w + M * 2 && this.rt.height === h + M * 2) return;
+      this.rt.destroy();
+      this.rt = this.make(w, h);
+    });
+  }
+
+  /** The darkness layer, oversized by a margin so camera shake and sub-pixel follow never expose an unlit edge. */
+  private make(w: number, h: number) {
+    return this.scene.add.renderTexture(-M, -M, w + M * 2, h + M * 2)
       .setOrigin(0)
       .setScrollFactor(0)
-      .setDepth(depth)
+      .setDepth(this.depth)
       .setBlendMode(Phaser.BlendModes.MULTIPLY);
   }
 
