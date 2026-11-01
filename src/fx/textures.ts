@@ -60,6 +60,14 @@ export function makeVignette(scene: Phaser.Scene, w: number, h: number, key = 'v
   });
 }
 
+/** The vignette for the game's size now (one texture per size, made the first time it is needed). */
+export function vignetteFor(scene: Phaser.Scene) {
+  const { width: w, height: h } = scene.scale;
+  const key = `vignette.${w}x${h}`;
+  if (!scene.textures.exists(key)) makeVignette(scene, w, h, key);
+  return key;
+}
+
 /** Vertical sky gradient through the planet's sky colors, banded + dithered. */
 export function makeSky(scene: Phaser.Scene, key: string, colors: number[], w: number, h: number) {
   const stops = colors.map(rgb);

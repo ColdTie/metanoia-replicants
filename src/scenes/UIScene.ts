@@ -5,6 +5,7 @@ import { session } from '../core/session';
 import { onPress, touch } from '../input/Controls';
 import { sound } from '../audio/Sound';
 import { TalkBox } from '../ui/dialogue';
+import { onScreenSize } from '../core/viewport';
 
 /** scenes that open over the world with their own buttons */
 const MENUS = ['starmap', 'designs', 'vault'];
@@ -40,7 +41,7 @@ export class UIScene extends Phaser.Scene {
   constructor() { super('ui'); }
 
   create() {
-    const { width, height } = this.scale;
+    const { height } = this.scale;
 
     // Ember counter: icon + number, fades when idle
     const icon = this.add.image(0, 0, 'shard').setOrigin(0, 0);
@@ -100,23 +101,23 @@ export class UIScene extends Phaser.Scene {
     this.input.mouse?.disableContextMenu();
     this.stickBase = this.add.circle(0, 0, STICK_RADIUS, PALETTE[24], 0.35).setStrokeStyle(1, PALETTE[21], 0.6).setVisible(false);
     this.stickKnob = this.add.circle(0, 0, 10, PALETTE[20], 0.55).setVisible(false);
-    const bx = width - 52, by = height - 52;
+    const by = height - 52;
     const ring = this.add.circle(0, 0, 28, PALETTE[24], 0.35).setStrokeStyle(2, PALETTE[9], 0.8);
     const core = this.add.circle(0, 0, 18, PALETTE[9], 0.35);
     const glyph = this.add.image(1, 0, 'slash', 1).setScale(0.75).setAlpha(0.9);
-    this.actionBtn = this.add.container(bx, by, [ring, core, glyph]);
+    this.actionBtn = this.add.container(0, by, [ring, core, glyph]);
     const hint = this.add.circle(52, height - 52, STICK_RADIUS, PALETTE[24], 0.25).setStrokeStyle(1, PALETTE[21], 0.4);
     // talk: a speech mark in the copy's visor color, up and left of the action button
     const talkRing = this.add.circle(0, 0, 13, PALETTE[24], 0.45).setStrokeStyle(1, PALETTE[21], 0.7);
     this.talkBtnCore = this.add.circle(0, 0, 9, PALETTE[10], 0.3);
     const talkGlyph = this.add.image(0, 1, 'talkhint');
-    this.talkBtn = this.add.container(bx - 46, by - 24, [talkRing, this.talkBtnCore, talkGlyph]).setVisible(false);
+    this.talkBtn = this.add.container(0, by - 24, [talkRing, this.talkBtnCore, talkGlyph]).setVisible(false);
     this.touchUi = this.add.container(0, 0, [hint, this.actionBtn, this.talkBtn]);
     this.touchUi.setVisible(this.sys.game.device.input.touch);
     const onTalkBtn = (p: Phaser.Input.Pointer) => this.talkBtn.visible && this.touchUi.visible && Math.hypot(p.x - this.talkBtn.x, p.y - this.talkBtn.y) < 17;
 
     // Sound toggle: a tiny speaker in the top right corner (M on the keyboard)
-    const speaker = this.add.graphics().setPosition(width - 16, 6).setAlpha(0.45);
+    const speaker = this.add.graphics().setY(6).setAlpha(0.45);
     const drawSpeaker = () => {
       speaker.clear();
       speaker.fillStyle(PALETTE[20]).fillRect(0, 3, 3, 4).fillTriangle(2, 5, 6, 0, 6, 10);
@@ -127,12 +128,19 @@ export class UIScene extends Phaser.Scene {
     drawSpeaker();
     const toggleSound = () => { sound.start(); sound.setMuted(!sound.muted); drawSpeaker(); };
     onPress(this, ['M'], toggleSound);
-    const onSpeaker = (p: Phaser.Input.Pointer) => p.x > width - 26 && p.y < 22;
+    const onSpeaker = (p: Phaser.Input.Pointer) => p.x > this.scale.width - 26 && p.y < 22;
 
-    if (new URLSearchParams(location.search).has('fps')) {
-      const fps = this.add.bitmapText(width - 40, 6, 'pixel', '').setTint(PALETTE[11]);
-      this.time.addEvent({ delay: 500, loop: true, callback: () => fps.setText(String(Math.round(this.game.loop.actualFps))) });
-    }
+    const fps = new URLSearchParams(location.search).has('fps') ? this.add.bitmapText(0, 6, 'pixel', '').setTint(PALETTE[11]) : undefined;
+    if (fps) this.time.addEvent({ delay: 500, loop: true, callback: () => fps.setText(String(Math.round(this.game.loop.actualFps))) });
+
+    // what sits on the right edge follows it when the game gets wider or narrower (src/core/viewport.ts)
+    onScreenSize(this, (w) => {
+      this.actionBtn.setX(w - 52);
+      this.talkBtn.setX(w - 52 - 46);
+      speaker.setX(w - 16);
+      fps?.setX(w - 40);
+      this.talkBox.relayout();
+    });
 
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (onSpeaker(p)) { toggleSound(); return; }
@@ -170,13 +178,14 @@ export class UIScene extends Phaser.Scene {
       }
       // a tap on the corner label (place and who lives here) opens the journal
       if (p.x < 130 && p.y > 14 && p.y < 70) { this.game.events.emit('journal'); return; }
-      if (p.x < width * 0.45 && this.stickPointer === null) {
+      const split = this.scale.width * 0.45;
+      if (p.x < split && this.stickPointer === null) {
         this.stickPointer = p.id;
         this.stickOrigin.set(p.x, p.y);
         this.stickBase.setPosition(p.x, p.y).setVisible(true);
         this.stickKnob.setPosition(p.x, p.y).setVisible(true);
         hint.setVisible(false);
-      } else if (p.x >= width * 0.45) {
+      } else if (p.x >= split) {
         touch.actionQueued = true;
         this.swipes.set(p.id, { x: p.x, y: p.y, t: this.time.now, done: false });
         this.tweens.add({ targets: this.actionBtn, scale: { from: 0.85, to: 1 }, duration: 140, ease: 'Back.easeOut' });

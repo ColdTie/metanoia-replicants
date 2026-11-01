@@ -35,7 +35,8 @@ Code identifiers keep their old names (replicant, vessel, manny).
 
 Anchor reference: Hyper Light Drifter. Secondary: Starbound (planet variety), Dead Cells (animation smoothness over detail), Kingdom Two Crowns (lighting, silhouettes, parallax, particles), Celeste (tiny body, one big expressive feature).
 
-- Resolution: internal canvas 480x270, scaled up with nearest neighbor filtering. Sprites 16x16 for characters and items, 16x16 tiles.
+- Resolution: internal canvas 270 tall and 480 wide on a 16:9 screen, up to 720 wide on a wider one (a phone held
+  sideways; since 2026-11-01, `src/core/viewport.ts`), scaled up with nearest neighbor filtering. Sprites 16x16 for characters and items, 16x16 tiles.
 - Palette: Endesga 32 (lospec). Cold base (navy, slate, dusty teal). Warm accents only for things that are alive or yours: the vessel, base lights, resource glows, the player.
 - Each planet gets one accent hue that tints its tiles, sky gradient, and creatures.
 - Lighting: dark vignette, soft radial light around the player and built structures, dust and spore particles, slow parallax background. Cheap shader or blend mode effects, nothing expensive.
@@ -160,7 +161,8 @@ tools/sprites/*.json     sprite source: palette-index grids + legend + animation
 tools/gen-sprites.mjs    JSON -> public/assets/gen/*.png + manifest.json
                          "tinted": one sheet per planet (accent a0-a2, ground g0-g2 roles)
                          "featured": one sheet per visor color in player.json featureColors (f0/f1 roles)
-tools/screenshot.mjs     build preview + headless Chromium capture -> screenshots/<name>.png
+tools/screenshot.mjs     build preview + headless Chromium capture -> screenshots/<name>.png (a wider --size, e.g.
+                         1440x540, gives a wider game)
 tools/build-code-view.mjs the deploy writes dist/code/source.json: every tracked text file with its line count and a
                          one-line "about", plus main's latest changes; the copies read it in their long wakes
 src/core/home.ts         HOME: the start world (the first planet in planets.json, LHS 1140 b) and the stars known from the start
@@ -217,7 +219,13 @@ src/scenes/DesignScene.ts the design menu over the paused planet: rows (READY / 
                          the words laid out from the foot of the panel up (measured once wrapped), the model in the room
                          left above them; an X in the corner closes it
 src/core/viewport.ts     keeps the game inside what a phone shows: the game's box follows the visual viewport less the
-                         safe-area insets (the browser's bars, the notch), and Phaser refits on every change
+                         safe-area insets (the browser's bars, the notch), and Phaser refits on every change. The game
+                         is GAME_H (270) tall and as wide as the box's shape asks (MIN_W 480 .. MAX_W 720): a wide screen
+                         shows more world, not bars. A new width is taken on once only the planet and its UI run (the
+                         other scenes lay out once); onScreenSize() re-lays what hangs off the right edge (the touch
+                         buttons, the speaker, the talk box, kept 480 wide and centered); the lighting, sky, fog and
+                         weather layers are MAX_W wide; the vignette is one texture per size (vignetteFor); the design
+                         menu and the husk vault center their 480 layout with the camera
 supabase/manual/         SQL run by hand, only when Steve asks: 2026-10-27_tutorial_fresh_start.sql (backs up and erases his
                          galaxy only; run 2026-10-28)
 src/data/*.json          palette, planets, player, enemies, items, structures, backend, village, warren (all tunables)
@@ -495,6 +503,21 @@ Sessions 1 to 22 (the vertical slice through the Cems' swift strain) are in `doc
 6. GitHub: require the "test" status check on main.
 7. Step 2 of `docs/plan-metanoia.md` (joining by invite link) waits for Steve's yes to its migration, the redirect URL
    check in Supabase, and an email address each for Linda and Freya.
+
+### Session 26 (2026-11-01): the game fills a phone held sideways (Steve, on an iPhone in Chrome: "the screen seems to be too small")
+- **What it was:** the game drew a fixed 480x270 (16:9) and was fitted into what the phone shows. In Chrome on the iPhone
+  held sideways that area is about 2.5:1 (the address bar on top, the notch's safe areas at the sides), so a third of
+  the width was black bars.
+- **The fix** (`src/core/viewport.ts`): the game stays 270 tall and takes the width the screen's shape asks, from 480
+  (16:9 or narrower: desktops and the playtests are unchanged) to 720. The width is chosen before the game starts and
+  follows a later change (the phone turned, a window resized) as soon as only the planet is showing; while the home
+  screen, travel, the star map, the designs, the vault or the warren is open the canvas keeps its bars until it closes.
+  On the planet the touch buttons, the speaker and the talk box follow the right edge (the talk box stays 480 wide,
+  centered, so its lines stay short); the darkness, sky, stars, fog, sunbeams and rain layers cover the widest game;
+  the vignette is made for each size. The design menu and the husk vault keep their 480 layout, centered.
+- Verified: build, typecheck, every scene at 720x270 (planet, touch controls, talk box, star map, designs, vault,
+  warren, travel) and a live resize both ways with the star map open in between, no page errors; the full `npm test`.
+  Screenshot `wide-phone.png`.
 
 ### Session 25 (2026-10-29): the next steps; the minds back on (Steve: "Go ahead and view this game. Then look at the plan doc and the bible. Whats next? Ask me any questions and we will make a plan for the next steps", and his answers: invite link, turn the minds back on, joining and the memory next, merge #72 and update the bible)
 - Looked over the game (fresh screenshots of the homeworld, the bed, the Replicator printing, Gliese 12 b) and Steve's

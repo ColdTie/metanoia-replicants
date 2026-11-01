@@ -12,6 +12,7 @@ import { CAT, DESIGNS, designModel, paintTexture, turntableView } from '../core/
 import { Controls, onPress } from '../input/Controls';
 import { turntableSize, type Model } from '../world/voxel';
 import type { PlanetScene } from './PlanetScene';
+import { MIN_W } from '../core/viewport';
 
 const ICON: Record<string, number> = { salt: 8, iron: 13, quartz: 15, copper: 16, wood: 2, ember: 6, hydrogen: 14 };
 const LIST_X = 14, LIST_Y = 38, ROW_H = 24, INFO_X = 200, INFO_W = 270, PREV_Y = 14;
@@ -64,8 +65,10 @@ export class DesignScene extends Phaser.Scene {
 
   create() {
     const { width: w, height: h } = this.scale;
+    // laid out for 480 wide: on a wider screen (src/core/viewport.ts) the camera puts the panels in the middle
+    this.cameras.main.setScroll(-Math.round((w - MIN_W) / 2), 0);
     // the world stays behind, dimmed
-    this.add.rectangle(0, 0, w, h, PALETTE[25], 0.8).setOrigin(0);
+    this.add.rectangle(0, 0, w, h, PALETTE[25], 0.8).setOrigin(0).setScrollFactor(0);
     const g = this.add.graphics();
     g.fillStyle(PALETTE[24], 0.92).fillRect(8, 8, 184, h - 16).lineStyle(1, PALETTE[23], 1).strokeRect(8.5, 8.5, 184, h - 17);
     g.fillStyle(PALETTE[24], 0.92).fillRect(INFO_X - 4, 8, INFO_W + 6, h - 16).lineStyle(1, PALETTE[23], 1).strokeRect(INFO_X - 3.5, 8.5, INFO_W + 6, h - 17);

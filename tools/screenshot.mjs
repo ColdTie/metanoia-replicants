@@ -1,5 +1,6 @@
 // Headless Chromium screenshot of the built game for review in chat.
 // Usage: npm run build && node tools/screenshot.mjs [--name phase0] [--query "shot=1"] [--wait 2500] [--size 960x540]
+//        (a wider --size, such as 1440x540, gives a wider game: a phone held sideways)
 //        [--eval "<js run in the page after load, before the wait>"]
 // Starts `vite preview`, opens the game, waits, saves screenshots/<name>.png, and fails on page errors.
 
@@ -42,10 +43,11 @@ try {
   await page.waitForTimeout(wait);
   fs.mkdirSync(path.join(root, 'screenshots'), { recursive: true });
   const out = path.join(root, 'screenshots', `${name}.png`);
-  // Grab the 480x270 frame from Phaser and upscale with nearest neighbor (page.screenshot stalls on
-  // continuously rendering WebGL under software GL).
-  const dataUrl = await page.evaluate(([w, h]) => new Promise((res) => window.__game.renderer.snapshot((img) => {
+  // Grab the frame from Phaser (270 tall, 480 or wider: src/core/viewport.ts) and upscale it to the window's height with
+  // nearest neighbor (page.screenshot stalls on continuously rendering WebGL under software GL).
+  const dataUrl = await page.evaluate(([, h]) => new Promise((res) => window.__game.renderer.snapshot((img) => {
     const c = document.createElement('canvas');
+    const w = Math.round((h * img.width) / img.height);
     c.width = w; c.height = h;
     const ctx = c.getContext('2d');
     ctx.imageSmoothingEnabled = false;

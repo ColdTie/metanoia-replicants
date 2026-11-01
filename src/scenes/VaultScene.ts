@@ -12,10 +12,11 @@ import { inManny, mannyWorlds, worldKey } from '../core/mannies';
 import { session } from '../core/session';
 import { COST, STANDBY } from '../entities/Manny';
 import { Lighting, type Light } from '../fx/Lighting';
-import { makeVignette } from '../fx/textures';
+import { vignetteFor } from '../fx/textures';
 import { Controls, onPress } from '../input/Controls';
 import { distanceLy, planetFor, starById } from '../world/galaxy';
 import { DEPTH, type PlanetScene } from './PlanetScene';
+import { MIN_W } from '../core/viewport';
 
 type Row = { kind: 'husk' | 'build' | 'body' | 'up'; label: string; sub: string; star?: string; planet?: number; enabled: boolean; here?: boolean };
 const ICON: Record<string, number> = { iron: 13, hydrogen: 14 };
@@ -42,6 +43,8 @@ export class VaultScene extends Phaser.Scene {
 
   create() {
     const { width: w, height: h } = this.scale;
+    // laid out for 480 wide: on a wider screen (src/core/viewport.ts) the camera puts the room and menu in the middle
+    this.cameras.main.setScroll(-Math.round((w - MIN_W) / 2), 0);
     this.cameras.main.setBackgroundColor(PALETTE[25]);
     this.lighting = new Lighting(this, 0x585d7e, DEPTH.dark);
     this.controls = new Controls(this);
@@ -53,8 +56,7 @@ export class VaultScene extends Phaser.Scene {
     this.drawMenu();
     // a key moves one row on its press; the held key also reads as the stick, so that counts as held (no second row)
     for (const [key, d] of [['UP', -1], ['W', -1], ['DOWN', 1], ['S', 1]] as const) onPress(this, [key], () => { this.move(d); this.stickHeld = true; });
-    if (!this.textures.exists('vignette')) makeVignette(this, w, h);
-    this.add.image(0, 0, 'vignette').setOrigin(0).setDepth(DEPTH.vignette);
+    this.add.image(0, 0, vignetteFor(this)).setOrigin(0).setScrollFactor(0).setDepth(DEPTH.vignette);
     this.cameras.main.fadeIn(400, 11, 10, 22);
     this.game.events.emit('location', `THE HUSK VAULT - ${this.host.placeLabel}`, []);
     sound.vaultHum(true);
@@ -64,8 +66,8 @@ export class VaultScene extends Phaser.Scene {
 
   /** Steel floor, a back wall of plates, the steps down from the bunker with a little daylight at the top. */
   private drawRoom(w: number, h: number) {
+    this.add.rectangle(0, 0, w, h, PALETTE[24]).setOrigin(0).setScrollFactor(0).setDepth(DEPTH.ground - 1);
     const g = this.add.graphics().setDepth(DEPTH.ground);
-    g.fillStyle(PALETTE[24], 1).fillRect(0, 0, w, h);
     g.fillStyle(PALETTE[23], 1).fillRect(20, 70, MENU_X - 30, 120);
     for (let x = 20; x < MENU_X - 10; x += 24) g.lineStyle(1, PALETTE[25], 0.8).lineBetween(x, 70, x, 190);
     g.lineStyle(1, PALETTE[22], 0.6).lineBetween(20, 70, MENU_X - 10, 70);

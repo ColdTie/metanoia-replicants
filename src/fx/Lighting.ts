@@ -1,6 +1,7 @@
 // Darkness layer: a screen-sized render texture filled with the ambient color, lights stamped in
 // additively, then multiplied over the scene. Glow sprites add warm bloom on top.
 import Phaser from 'phaser';
+import { MAX_W } from '../core/viewport';
 
 export interface Light {
   x: number;
@@ -21,9 +22,10 @@ export class Lighting {
   private t = 0;
 
   constructor(private scene: Phaser.Scene, private ambient: number, depth: number) {
-    const { width, height } = scene.scale;
-    // Oversized by a margin so camera shake and sub-pixel follow never expose an unlit edge
-    this.rt = scene.add.renderTexture(-M, -M, width + M * 2, height + M * 2)
+    const { height } = scene.scale;
+    // Oversized by a margin so camera shake and sub-pixel follow never expose an unlit edge, and as wide as the game
+    // can get (src/core/viewport.ts) so it still covers the screen after the phone is turned
+    this.rt = scene.add.renderTexture(-M, -M, MAX_W + M * 2, height + M * 2)
       .setOrigin(0)
       .setScrollFactor(0)
       .setDepth(depth)

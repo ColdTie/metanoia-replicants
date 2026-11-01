@@ -5,6 +5,7 @@ import Phaser from 'phaser';
 import { sound } from '../audio/Sound';
 import { anim } from '../core/assets';
 import { PALETTE } from '../core/data';
+import { MIN_W } from '../core/viewport';
 import { Gear } from '../entities/Gear';
 import TALK from '../data/talk.json';
 import { paletteCss as css } from './overlay';
@@ -30,7 +31,7 @@ const GAP_PX = 6;
 const pageText = (p: TalkPage) => p.lines.map((l) => l.map((s) => s.text).join('')).join('\n');
 
 export class TalkBox {
-  readonly x: number; readonly y: number; readonly w: number; readonly h: number;
+  x: number; readonly y: number; readonly w: number; readonly h: number;
   /** where the prose starts and how wide it may run */
   readonly tx: number; readonly ty: number; readonly tw: number;
   private root: Phaser.GameObjects.Container;
@@ -63,8 +64,9 @@ export class TalkBox {
   constructor(private scene: Phaser.Scene) {
     const { width, height } = scene.scale;
     const b = TALK.box;
-    this.w = width - b.margin * 2; this.h = b.height;
-    this.x = b.margin; this.y = height - b.margin - b.height;
+    // as wide as on a 16:9 screen at most, centered on a wider one (lines of prose stay short enough to read)
+    this.w = Math.min(width, MIN_W) - b.margin * 2; this.h = b.height;
+    this.x = Math.round((width - this.w) / 2); this.y = height - b.margin - b.height;
     this.tx = 66; this.ty = 21; this.tw = this.w - this.tx - 12;
     this.frame = scene.add.graphics();
     this.deco = scene.add.graphics();
@@ -78,6 +80,12 @@ export class TalkBox {
     this.root = scene.add.container(this.x, this.y, [this.frame, this.visorGlow, this.portrait, this.gear.image, this.deco, this.nameText, this.label, this.replyHint, this.textLayer])
       .setDepth(100).setVisible(false);
     this.drawFrame();
+  }
+
+  /** The game got wider or narrower (src/core/viewport.ts): keep the box centered. */
+  relayout() {
+    this.x = Math.round((this.scene.scale.width - this.w) / 2);
+    this.root.setX(this.x);
   }
 
   /** Width in px of a run of prose (for wrapping), from the prose font's own advances. */
